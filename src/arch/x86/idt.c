@@ -6,15 +6,17 @@ struct idt_ptr idtp;
 extern void idt_load(uint32_t);
 
 #define PIC1_COMMAND 0x20
-#define PIC1_DATA    0x21
+#define PIC1_DATA 0x21
 #define PIC2_COMMAND 0xA0
-#define PIC2_DATA    0xA1
+#define PIC2_DATA 0xA1
 
-static inline void outb(uint16_t port, uint8_t val) {
-    __asm__ volatile ( "outb %0, %1" : : "a"(val), "Nd"(port) );
+static inline void outb(uint16_t port, uint8_t val)
+{
+    __asm__ volatile("outb %0, %1" : : "a"(val), "Nd"(port));
 }
 
-void idt_set_gate(int n, uint32_t base, uint16_t sel, uint8_t flags) {
+void idt_set_gate(int n, uint32_t base, uint16_t sel, uint8_t flags)
+{
     idt[n].base_low = base & 0xFFFF;
     idt[n].base_high = (base >> 16) & 0xFFFF;
     idt[n].selector = sel;
@@ -22,7 +24,8 @@ void idt_set_gate(int n, uint32_t base, uint16_t sel, uint8_t flags) {
     idt[n].flags = flags;
 }
 
-void pic_remap() {
+void pic_remap()
+{
     outb(PIC1_COMMAND, 0x11);
     outb(PIC2_COMMAND, 0x11);
 
@@ -35,34 +38,52 @@ void pic_remap() {
     outb(PIC1_DATA, 0x01);
     outb(PIC2_DATA, 0x01);
 
-    outb(PIC1_DATA, 0xFD); 
+    outb(PIC1_DATA, 0xFD);
     outb(PIC2_DATA, 0xFF);
 }
 
-void idt_init() {
+void idt_init()
+{
     idtp.limit = (sizeof(struct idt_entry) * 256) - 1;
     idtp.base = (uint32_t)&idt;
 
-    for(int i = 0; i < 256; i++) {
+    for (int i = 0; i < 256; i++)
+    {
         idt_set_gate(i, 0, 0, 0);
     }
 
-    extern void exception_handler_0(); extern void exception_handler_1();
-    extern void exception_handler_2(); extern void exception_handler_3();
-    extern void exception_handler_4(); extern void exception_handler_5();
-    extern void exception_handler_6(); extern void exception_handler_7();
-    extern void exception_handler_8(); extern void exception_handler_9();
-    extern void exception_handler_10(); extern void exception_handler_11();
-    extern void exception_handler_12(); extern void exception_handler_13();
-    extern void exception_handler_14(); extern void exception_handler_15();
-    extern void exception_handler_16(); extern void exception_handler_17();
-    extern void exception_handler_18(); extern void exception_handler_19();
-    extern void exception_handler_20(); extern void exception_handler_21();
-    extern void exception_handler_22(); extern void exception_handler_23();
-    extern void exception_handler_24(); extern void exception_handler_25();
-    extern void exception_handler_26(); extern void exception_handler_27();
-    extern void exception_handler_28(); extern void exception_handler_29();
-    extern void exception_handler_30(); extern void exception_handler_31();
+    extern void exception_handler_0();
+    extern void exception_handler_1();
+    extern void exception_handler_2();
+    extern void exception_handler_3();
+    extern void exception_handler_4();
+    extern void exception_handler_5();
+    extern void exception_handler_6();
+    extern void exception_handler_7();
+    extern void exception_handler_8();
+    extern void exception_handler_9();
+    extern void exception_handler_10();
+    extern void exception_handler_11();
+    extern void exception_handler_12();
+    extern void exception_handler_13();
+    extern void exception_handler_14();
+    extern void exception_handler_15();
+    extern void exception_handler_16();
+    extern void exception_handler_17();
+    extern void exception_handler_18();
+    extern void exception_handler_19();
+    extern void exception_handler_20();
+    extern void exception_handler_21();
+    extern void exception_handler_22();
+    extern void exception_handler_23();
+    extern void exception_handler_24();
+    extern void exception_handler_25();
+    extern void exception_handler_26();
+    extern void exception_handler_27();
+    extern void exception_handler_28();
+    extern void exception_handler_29();
+    extern void exception_handler_30();
+    extern void exception_handler_31();
 
     idt_set_gate(0, (uint32_t)exception_handler_0, 0x08, 0x8E);
     idt_set_gate(1, (uint32_t)exception_handler_1, 0x08, 0x8E);

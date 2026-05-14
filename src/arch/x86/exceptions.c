@@ -32,13 +32,13 @@ char *exception_messages[] = {
     "Reserved",
     "Reserved",
     "Reserved",
-    "Reserved",
-    "Reserved"
-};
+    "Reserved"};
 
-void exception_handler(int n) {
+void exception_handler(int n)
+{
     vga_set_color(VGA_COLOR_WHITE, VGA_COLOR_RED);
     vga_printf("\nEXCEPTION: %s (%d)\n", exception_messages[n], n);
     vga_puts("System Halted.");
-    for(;;);
+    for (;;)
+        ;
 }

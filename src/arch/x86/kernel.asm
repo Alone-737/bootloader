@@ -1,5 +1,7 @@
 [BITS 32]
 
+section .text.startup
+
 extern shoot_on_your_own_foot
 
 global _kernel_entry

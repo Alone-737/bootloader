@@ -31,10 +31,10 @@ make
 
 ```bash
 # Run with QEMU
-qemu-system-x86_64 -hda ./bin/os.bin
+qemu-system-x86_64 -drive format=raw,file=./bin/os.bin,if=ide,index=0
 
 # Debug with GDB
-qemu-system-x86_64 -hda ./bin/os.bin -s -S &
+qemu-system-x86_64 -drive format=raw,file=./bin/os.bin,if=ide,index=0 -s -S &
 gdb ./bin/kernel.bin
 (gdb) target remote localhost:1234
 (gdb) break shoot_on_your_own_foot
@@ -43,10 +43,14 @@ gdb ./bin/kernel.bin
 
 ## Architecture
 
-- **Bootloader** (`src/boot.asm`): Real mode initialization, disk loading, mode switching
-- **Kernel Assembly** (`src/kernel.asm`): 32-bit entry point
-- **Kernel C** (`src/kernel.c`): Main kernel logic
-- **Linker Script** (`src/linkerscript.ld`): Memory layout
+- **Bootloader** (`src/arch/x86/boot.asm`): Real mode initialization, disk loading, mode switching
+- **Kernel Assembly** (`src/arch/x86/kernel.asm`): 32-bit entry point
+- **Interrupts and IDT** (`src/arch/x86/interrupts.asm`, `src/arch/x86/idt.c`, `src/arch/x86/idt.h`): Exception and interrupt setup
+- **Drivers** (`src/drivers/`): VGA and keyboard support
+- **Kernel C** (`src/kernel/kernel.c`): Main kernel logic
+- **Memory** (`src/memory/pmm.c`, `src/memory/pmm.h`): Physical memory management
+- **Shell** (`src/shell/`): Interactive shell and command history
+- **Linker Script** (`linkerscript.ld`): Memory layout
 
 ## Requirements
 

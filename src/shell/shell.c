@@ -1,4 +1,6 @@
-#include "kernel.h"
+#include "shell.h"
+#include "history.h"
+#include "vga.h"
 
 static inline unsigned char inb(unsigned short port)
 {
@@ -120,12 +122,6 @@ static char keyboard_getchar(void)
     }
 }
 
-void keyboard_handler(void)
-{
-    unsigned char scancode = inb(0x60);
-    (void)scancode;
-}
-
 static int str_eq(const char *a, const char *b)
 {
     int i = 0;
@@ -161,7 +157,7 @@ static void print_prompt(void)
     vga_set_color(VGA_COLOR_WHITE, VGA_COLOR_BLACK);
 }
 
-static void shell_banner(void)
+void shell_banner(void)
 {
     vga_init();
     vga_set_color(VGA_COLOR_WHITE, VGA_COLOR_BLACK);
@@ -169,7 +165,7 @@ static void shell_banner(void)
     vga_puts("Type 'help' for commands.\n\n");
 }
 
-static void shell_exec(const char *line)
+void shell_exec(const char *line)
 {
     int i = 0;
     while (line[i] == ' ' || line[i] == '\t')
@@ -183,9 +179,44 @@ static void shell_exec(const char *line)
         return;
     }
 
+    if (cmd[0] == '!')
+    {
+        int idx = 0;
+        int j = 1;
+        while (cmd[j] >= '0' && cmd[j] <= '9')
+        {
+            idx = idx * 10 + (cmd[j] - '0');
+            j++;
+        }
+        if (j > 1 && cmd[j] == '\0')
+        {
+            const char *hist = history_get(idx);
+            if (hist[0] != '\0')
+            {
+                vga_puts(hist);
+                vga_puts("\n");
+                shell_exec(hist);
+                return;
+            }
+            vga_puts("history index out of range\n");
+            return;
+        }
+    }
+
+    if (str_eq(cmd, "history"))
+    {
+        int count = history_get_count();
+        for (int h = 0; h < count; h++)
+        {
+            vga_printf("%d  %s\n", h, history_get(h));
+        }
+        return;
+    }
+
     if (str_eq(cmd, "help"))
     {
-        vga_puts("help  clear  echo  uname  whoami\n");
+        vga_puts("help  clear  echo  uname  whoami  history  ls  mkdir  pwd\n");
+        vga_puts("!N to run command N from history\n");
         return;
     }
 
@@ -214,9 +245,27 @@ static void shell_exec(const char *line)
         return;
     }
 
-    if (str_eq(cmd, "echo"))
+    if (str_eq(cmd, "ls"))
     {
-        vga_puts("\n");
+        vga_puts(".  ..\n");
+        return;
+    }
+
+    if (str_eq(cmd, "pwd"))
+    {
+        vga_puts("/\n");
+        return;
+    }
+
+    if (str_starts_with(cmd, "mkdir "))
+    {
+        vga_puts("mkdir: cannot create directory: Read-only file system\n");
+        return;
+    }
+
+    if (str_eq(cmd, "mkdir"))
+    {
+        vga_puts("mkdir: missing operand\n");
         return;
     }
 
@@ -225,10 +274,8 @@ static void shell_exec(const char *line)
     vga_puts("\n");
 }
 
-void shoot_on_your_own_foot()
+void shell_run(void)
 {
-    shell_banner();
-
     char line[80];
     int len = 0;
     line[0] = '\0';
@@ -243,6 +290,10 @@ void shoot_on_your_own_foot()
         {
             vga_putchar('\n');
             line[len] = '\0';
+            if (len > 0)
+            {
+                history_add(line);
+            }
             shell_exec(line);
             len = 0;
             line[0] = '\0';

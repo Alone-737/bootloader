@@ -4,6 +4,7 @@ SECTIONS{
   . = 0x10000;
   .text : ALIGN(4096)
   {
+    *(.text.startup)
     *(.text)
   }
   .rodata : ALIGN(4096)
