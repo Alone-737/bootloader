@@ -3,6 +3,6 @@
 
 #include "vga.h"
 
-void kernel_main();
+void shoot_on_your_own_foot();
 
 #endif

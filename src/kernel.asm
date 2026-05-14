@@ -1,11 +1,11 @@
 [BITS 32]
 
-extern kernel_main
+extern shoot_on_your_own_foot
 
 global _kernel_entry
 
 _kernel_entry:
-  call kernel_main
+  call shoot_on_your_own_foot
 
   cli
   hlt

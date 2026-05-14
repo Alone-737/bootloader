@@ -182,7 +182,7 @@ static void redraw_login_input(const char *username)
     vga_puts(username);
 }
 
-void kernel_main()
+void shoot_on_your_own_foot()
 {
     vga_init();
 

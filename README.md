@@ -37,7 +37,7 @@ qemu-system-x86_64 -hda ./bin/os.bin
 qemu-system-x86_64 -hda ./bin/os.bin -s -S &
 gdb ./bin/kernel.bin
 (gdb) target remote localhost:1234
-(gdb) break kernel_main
+(gdb) break shoot_on_your_own_foot
 (gdb) continue
 ```
 
@@ -55,7 +55,6 @@ gdb ./bin/kernel.bin
 - GNU Make
 - QEMU (for testing)
 - GDB (for debugging)
-
 
 ## License
 
