@@ -126,107 +126,148 @@ void keyboard_handler(void)
     (void)scancode;
 }
 
-static void clear_login_area(void)
+static int str_eq(const char *a, const char *b)
 {
-    vga_set_color(VGA_COLOR_WHITE, VGA_COLOR_BLACK);
-    vga_set_cursor(0, 0);
-    vga_puts("=== Bootloader Initialized ===\n\n");
-
-    vga_set_color(VGA_COLOR_LIGHT_CYAN, VGA_COLOR_BLACK);
-
-    vga_set_color(VGA_COLOR_YELLOW, VGA_COLOR_BLACK);
-    vga_set_cursor(0, 8);
-    vga_puts("login: ");
-    vga_set_cursor(7, 8);
-
-    vga_set_color(VGA_COLOR_LIGHT_GREY, VGA_COLOR_BLACK);
-    vga_set_cursor(50, 2);
-    vga_puts("User Panel");
-
-    vga_set_cursor(50, 4);
-    vga_puts("User: ");
-}
-
-static void clear_login_input(int length)
-{
-    vga_set_color(VGA_COLOR_WHITE, VGA_COLOR_BLACK);
-    vga_set_cursor(7, 8);
-    for (int i = 0; i < length; i++)
+    int i = 0;
+    while (a[i] != '\0' && b[i] != '\0')
     {
-        vga_putchar(' ');
+        if (a[i] != b[i])
+        {
+            return 0;
+        }
+        i++;
     }
-    vga_set_cursor(7 + length, 8);
+    return a[i] == b[i];
 }
 
-static void update_user_panel(const char *username)
+static int str_starts_with(const char *s, const char *prefix)
+{
+    int i = 0;
+    while (prefix[i] != '\0')
+    {
+        if (s[i] != prefix[i])
+        {
+            return 0;
+        }
+        i++;
+    }
+    return 1;
+}
+
+static void print_prompt(void)
 {
     vga_set_color(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK);
-    vga_set_cursor(56, 4);
-    vga_puts("                    ");
-    vga_set_cursor(56, 4);
-    vga_puts(username);
-
-    vga_set_color(VGA_COLOR_LIGHT_CYAN, VGA_COLOR_BLACK);
-    vga_set_cursor(50, 6);
-    vga_puts("Welcome, ");
-    vga_puts(username);
-    vga_puts("    ");
+    vga_puts("bootsh$ ");
+    vga_set_color(VGA_COLOR_WHITE, VGA_COLOR_BLACK);
 }
 
-static void redraw_login_input(const char *username)
+static void shell_banner(void)
 {
+    vga_init();
     vga_set_color(VGA_COLOR_WHITE, VGA_COLOR_BLACK);
-    vga_set_cursor(7, 8);
-    vga_puts("                              ");
-    vga_set_cursor(7, 8);
-    vga_puts(username);
+    vga_puts("Bootloader OS shell\n");
+    vga_puts("Type 'help' for commands.\n\n");
+}
+
+static void shell_exec(const char *line)
+{
+    int i = 0;
+    while (line[i] == ' ' || line[i] == '\t')
+    {
+        i++;
+    }
+
+    const char *cmd = &line[i];
+    if (cmd[0] == '\0')
+    {
+        return;
+    }
+
+    if (str_eq(cmd, "help"))
+    {
+        vga_puts("help  clear  echo  uname  whoami\n");
+        return;
+    }
+
+    if (str_eq(cmd, "clear"))
+    {
+        vga_clear();
+        return;
+    }
+
+    if (str_eq(cmd, "uname"))
+    {
+        vga_puts("BootloaderOS 0.1 i386\n");
+        return;
+    }
+
+    if (str_eq(cmd, "whoami"))
+    {
+        vga_puts("root\n");
+        return;
+    }
+
+    if (str_starts_with(cmd, "echo "))
+    {
+        vga_puts(cmd + 5);
+        vga_puts("\n");
+        return;
+    }
+
+    if (str_eq(cmd, "echo"))
+    {
+        vga_puts("\n");
+        return;
+    }
+
+    vga_puts("command not found: ");
+    vga_puts(cmd);
+    vga_puts("\n");
 }
 
 void shoot_on_your_own_foot()
 {
-    vga_init();
+    shell_banner();
 
-    clear_login_area();
+    char line[80];
+    int len = 0;
+    line[0] = '\0';
 
-    char username[32];
-    int username_length = 0;
-    username[0] = '\0';
+    print_prompt();
 
     for (;;)
     {
         char c = keyboard_getchar();
+
         if (c == '\n')
         {
-            username[username_length] = '\0';
-            update_user_panel(username);
-            redraw_login_input(username);
-            vga_set_color(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK);
-            vga_set_cursor(0, 10);
-            vga_puts("Logged in as: ");
-            vga_puts(username);
-            vga_puts("\n");
+            vga_putchar('\n');
+            line[len] = '\0';
+            shell_exec(line);
+            len = 0;
+            line[0] = '\0';
+            print_prompt();
             continue;
         }
 
         if (c == '\b')
         {
-            if (username_length > 0)
+            if (len > 0)
             {
-                username_length--;
-                username[username_length] = '\0';
-                clear_login_input(username_length);
-                redraw_login_input(username);
+                len--;
+                line[len] = '\0';
+                vga_putchar('\b');
+                vga_putchar(' ');
+                vga_putchar('\b');
             }
             continue;
         }
 
-        if (username_length < (int)sizeof(username) - 1)
+        if (len < (int)sizeof(line) - 1)
         {
-            username[username_length++] = c;
-            username[username_length] = '\0';
-            redraw_login_input(username);
+            line[len++] = c;
+            line[len] = '\0';
+            vga_putchar(c);
         }
-
-        update_user_panel(username);
     }
 }
