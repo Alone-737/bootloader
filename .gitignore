@@ -1,3 +1,18 @@
-./bin
-./build
-.gitignore
+# Build artifacts
+bin/
+build/
+
+# Compiled files
+*.o
+*.bin
+*.elf
+
+# Editor files
+*~
+*.swp
+*.swo
+.vscode/
+.idea/
+
+# OS-specific
+.DS_Store

@@ -2,6 +2,8 @@
 #include "history.h"
 #include "vga.h"
 
+static char current_user[32] = "root";
+
 static inline unsigned char inb(unsigned short port)
 {
     unsigned char value;
@@ -153,7 +155,7 @@ static int str_starts_with(const char *s, const char *prefix)
 static void print_prompt(void)
 {
     vga_set_color(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK);
-    vga_puts("bootsh$ ");
+    vga_printf("%s@bootsh$ ", current_user);
     vga_set_color(VGA_COLOR_WHITE, VGA_COLOR_BLACK);
 }
 
@@ -215,7 +217,7 @@ void shell_exec(const char *line)
 
     if (str_eq(cmd, "help"))
     {
-        vga_puts("help  clear  echo  uname  whoami  history  ls  mkdir  pwd\n");
+        vga_puts("help  clear  echo  uname  whoami  history  ls  mkdir  pwd  login\n");
         vga_puts("!N to run command N from history\n");
         return;
     }
@@ -228,13 +230,26 @@ void shell_exec(const char *line)
 
     if (str_eq(cmd, "uname"))
     {
-        vga_puts("BootloaderOS 0.1 i386\n");
+        vga_printf("%s\n", current_user);
         return;
     }
 
     if (str_eq(cmd, "whoami"))
     {
-        vga_puts("root\n");
+        vga_printf("%s\n", current_user);
+        return;
+    }
+
+    if (str_starts_with(cmd, "login "))
+    {
+        const char *new_user = cmd + 6;
+        int k = 0;
+        while (new_user[k] != '\0' && k < 31)
+        {
+            current_user[k] = new_user[k];
+            k++;
+        }
+        current_user[k] = '\0';
         return;
     }
 
