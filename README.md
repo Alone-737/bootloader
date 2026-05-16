@@ -48,7 +48,7 @@ sudo apt install gcc binutils nasm
 
 ```bash
 sudo pacman -S gcc binutils nasm
-```w
+```
 
 #### Fedora
 
