@@ -159,6 +159,23 @@ void vga_printf(const char *format, ...)
                 vga_putchar(c);
                 break;
             }
+            case '0':
+            {
+                if (format[i + 1] == '2' && format[i + 2] == 'd')
+                {
+                    i += 2;
+                    int val = va_arg(args, int);
+                    char buf[12];
+                    itoa(val, buf, 10);
+                    if (val >= 0 && val < 10)
+                        vga_putchar('0');
+                    vga_puts(buf);
+                    break;
+                }
+                vga_putchar('%');
+                vga_putchar('0');
+                break;
+            }
             default:
                 vga_putchar('%');
                 vga_putchar(format[i]);

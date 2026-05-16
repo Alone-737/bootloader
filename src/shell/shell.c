@@ -1,14 +1,39 @@
 #include "shell.h"
 #include "history.h"
 #include "vga.h"
+#include "fs.h"
+#include "io.h"
+#include "editor.h"
 
-static char current_user[32] = "root";
+static char current_user[4] = "root";
 
-static inline unsigned char inb(unsigned short port)
+static int cap_on = 0;
+static char cap_buf[4096];
+static int cap_len = 0;
+
+static char pipe_in[4096];
+static int pipe_in_len = 0;
+static int pipe_in_active = 0;
+
+static void putc(char c)
 {
-    unsigned char value;
-    __asm__ volatile("inb %1, %0" : "=a"(value) : "Nd"(port));
-    return value;
+    if (cap_on)
+    {
+        if (cap_len < (int)sizeof(cap_buf) - 1)
+            cap_buf[cap_len++] = c;
+    }
+    else
+    {
+        vga_putchar(c);
+    }
+}
+
+static void puts(const char *s)
+{
+    if (!s)
+        return;
+    for (int i = 0; s[i]; i++)
+        putc(s[i]);
 }
 
 static const char scancode_map[128] = {
@@ -70,6 +95,9 @@ static const char scancode_map[128] = {
     '*',
     0,
     ' ',
+    0,
+    0,
+    0,
     0,
     0,
     0,
@@ -152,6 +180,75 @@ static int str_starts_with(const char *s, const char *prefix)
     return 1;
 }
 
+static int str_contains(const char *s, const char *sub)
+{
+    if (!s || !sub || sub[0] == '\0')
+        return 0;
+    for (int i = 0; s[i]; i++)
+    {
+        int j = 0;
+        while (sub[j] && s[i + j] == sub[j])
+            j++;
+        if (sub[j] == '\0')
+            return 1;
+    }
+    return 0;
+}
+
+static int str_find(const char *s, const char *sub)
+{
+    if (!s || !sub || sub[0] == '\0')
+        return -1;
+    for (int i = 0; s[i]; i++)
+    {
+        int j = 0;
+        while (sub[j] && s[i + j] == sub[j])
+            j++;
+        if (sub[j] == '\0')
+            return i;
+    }
+    return -1;
+}
+
+static void str_cpy_n(char *dst, const char *src, int n)
+{
+    int i = 0;
+    while (i < n - 1 && src[i])
+    {
+        dst[i] = src[i];
+        i++;
+    }
+    dst[i] = '\0';
+}
+
+static int parse_args(const char *s, char *a1, char *a2)
+{
+    while (*s == ' ')
+        s++;
+    int i = 0;
+    while (s[i] && s[i] != ' ' && i < 63)
+    {
+        a1[i] = s[i];
+        i++;
+    }
+    a1[i] = '\0';
+    if (s[i] == '\0')
+        return 1;
+    while (s[i] == ' ')
+        i++;
+    if (s[i] == '\0')
+        return 1;
+    int j = 0;
+    while (s[i] && s[i] != ' ' && j < 63)
+    {
+        a2[j] = s[i];
+        i++;
+        j++;
+    }
+    a2[j] = '\0';
+    return 2;
+}
+
 static void print_prompt(void)
 {
     vga_set_color(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK);
@@ -163,23 +260,539 @@ void shell_banner(void)
 {
     vga_init();
     vga_set_color(VGA_COLOR_WHITE, VGA_COLOR_BLACK);
-    vga_puts("Bootloader OS shell\n");
+    vga_puts("I am too lazy to write a proper shell name \n");
     vga_puts("Type 'help' for commands.\n\n");
+}
+
+static unsigned char get_rtc_register(int reg)
+{
+    outb(0x70, reg);
+    return inb(0x71);
+}
+
+static int bcd_to_bin(int bcd)
+{
+    return ((bcd / 16) * 10) + (bcd & 0xf);
+}
+
+static int is_update_in_progress(void)
+{
+    outb(0x70, 0x0A);
+    return (inb(0x71) & 0x80);
+}
+
+static void cmd_date(void)
+{
+    while (is_update_in_progress())
+        ;
+
+    unsigned char second = get_rtc_register(0x00);
+    unsigned char minute = get_rtc_register(0x02);
+    unsigned char hour = get_rtc_register(0x04);
+    unsigned char day = get_rtc_register(0x07);
+    unsigned char month = get_rtc_register(0x08);
+    unsigned char year = get_rtc_register(0x09);
+    unsigned char statusB = get_rtc_register(0x0B);
+
+    if (!(statusB & 0x04))
+    {
+        second = bcd_to_bin(second);
+        minute = bcd_to_bin(minute);
+        hour = (bcd_to_bin(hour & 0x7F) & 0x7F) | (hour & 0x80);
+        day = bcd_to_bin(day);
+        month = bcd_to_bin(month);
+        year = bcd_to_bin(year);
+    }
+
+    if (!(statusB & 0x02) && (hour & 0x80))
+    {
+        hour = ((hour & 0x7F) + 12) % 24;
+    }
+
+    vga_printf("Current date: 20%02d-%02d-%02d %02d:%02d:%02d\n", year, month, day, hour, minute, second);
+}
+
+static void cmd_cat(const char *args)
+{
+    char fname[64];
+    char arg2[64];
+    int i;
+    for (i = 0; i < 64; i++) arg2[i] = 0;
+    parse_args(args, fname, arg2);
+    if (fname[0] == '\0')
+    {
+        puts("cat: missing operand\n");
+        return;
+    }
+    if (!fs_exists(fname))
+    {
+        puts("cat: ");
+        puts(fname);
+        puts(": No such file\n");
+        return;
+    }
+    char buf[FS_SIZE + 1];
+    int n = fs_read(fname, buf, FS_SIZE);
+    if (n > 0)
+    {
+        buf[n] = '\0';
+        puts(buf);
+    }
+    if (n > 0 && buf[n - 1] != '\n')
+        putc('\n');
+}
+
+static void cmd_rm(const char *args)
+{
+    char fname[64];
+    char arg2[64];
+    int i;
+    for (i = 0; i < 64; i++) arg2[i] = 0;
+    parse_args(args, fname, arg2);
+    if (fname[0] == '\0')
+    {
+        puts("rm: missing operand\n");
+        return;
+    }
+    if (fs_delete(fname) == 0)
+        puts("rm: removed '");
+    else
+        puts("rm: cannot remove '");
+    puts(fname);
+    puts("'\n");
+}
+
+static void cmd_mv(const char *args)
+{
+    char src[64], dst[64];
+    int n = parse_args(args, src, dst);
+    if (n < 2)
+    {
+        puts("mv: missing operand\n");
+        return;
+    }
+    if (!fs_exists(src))
+    {
+        puts("mv: ");
+        puts(src);
+        puts(": No such file\n");
+        return;
+    }
+    if (fs_rename(src, dst) == 0)
+    {
+        puts("mv: renamed '");
+        puts(src);
+        puts("' -> '");
+        puts(dst);
+        puts("'\n");
+    }
+    else
+    {
+        puts("mv: error renaming '");
+        puts(src);
+        puts("'\n");
+    }
+}
+
+static void cmd_cp(const char *args)
+{
+    char src[64], dst[64];
+    int n = parse_args(args, src, dst);
+    if (n < 2)
+    {
+        puts("cp: missing operand\n");
+        return;
+    }
+    if (!fs_exists(src))
+    {
+        puts("cp: ");
+        puts(src);
+        puts(": No such file\n");
+        return;
+    }
+    if (fs_copy(src, dst) == 0)
+    {
+        puts("cp: '");
+        puts(src);
+        puts("' -> '");
+        puts(dst);
+        puts("'\n");
+    }
+    else
+    {
+        puts("cp: error copying '");
+        puts(src);
+        puts("'\n");
+    }
+}
+
+static void cmd_grep(const char *args)
+{
+    char pattern[64], fname[64];
+    int n = parse_args(args, pattern, fname);
+
+    if (pattern[0] == '\0')
+    {
+        puts("grep: missing pattern\n");
+        return;
+    }
+
+    char buf[FS_SIZE + 1];
+    int buf_len = 0;
+
+    if (n >= 2 && fname[0] != '\0')
+    {
+        if (!fs_exists(fname))
+        {
+            puts("grep: ");
+            puts(fname);
+            puts(": No such file\n");
+            return;
+        }
+        buf_len = fs_read(fname, buf, FS_SIZE);
+        buf[buf_len] = '\0';
+    }
+    else if (pipe_in_active)
+    {
+        buf_len = pipe_in_len;
+        for (int i = 0; i < buf_len; i++)
+            buf[i] = pipe_in[i];
+        buf[buf_len] = '\0';
+    }
+    else
+    {
+        puts("grep: no input\n");
+        return;
+    }
+
+    int line_start = 0;
+    for (int i = 0; i <= buf_len; i++)
+    {
+        if (buf[i] == '\n' || i == buf_len)
+        {
+            char saved = buf[i];
+            buf[i] = '\0';
+            if (str_contains(&buf[line_start], pattern))
+            {
+                puts(&buf[line_start]);
+                putc('\n');
+            }
+            buf[i] = saved;
+            line_start = i + 1;
+        }
+    }
+}
+
+static void cmd_wc(const char *args)
+{
+    char fname[64];
+    char arg2[64];
+    int i;
+    for (i = 0; i < 64; i++) arg2[i] = 0;
+    int n = parse_args(args, fname, arg2);
+
+    char buf[FS_SIZE + 1];
+    int buf_len = 0;
+
+    if (n >= 1 && fname[0] != '\0')
+    {
+        if (!fs_exists(fname))
+        {
+            puts("wc: ");
+            puts(fname);
+            puts(": No such file\n");
+            return;
+        }
+        buf_len = fs_read(fname, buf, FS_SIZE);
+        buf[buf_len] = '\0';
+    }
+    else if (pipe_in_active)
+    {
+        buf_len = pipe_in_len;
+        for (int i = 0; i < buf_len; i++)
+            buf[i] = pipe_in[i];
+        buf[buf_len] = '\0';
+    }
+    else
+    {
+        puts("wc: no input\n");
+        return;
+    }
+
+    int lines = 0, words = 0, chars = buf_len;
+    int in_word = 0;
+    for (int i = 0; i < buf_len; i++)
+    {
+        if (buf[i] == '\n')
+            lines++;
+        if (buf[i] == ' ' || buf[i] == '\t' || buf[i] == '\n')
+        {
+            in_word = 0;
+        }
+        else if (!in_word)
+        {
+            in_word = 1;
+            words++;
+        }
+    }
+    vga_printf("%d  %d  %d", lines, words, chars);
+    if (fname[0] != '\0')
+    {
+        putc(' ');
+        puts(fname);
+    }
+    putc('\n');
+}
+
+static void exec_cmd(const char *cmd)
+{
+    if (cmd[0] == '\0')
+        return;
+
+    if (str_eq(cmd, "history"))
+    {
+        int count = history_get_count();
+        for (int h = 0; h < count; h++)
+        {
+            vga_printf("%d  %s\n", h, history_get(h));
+        }
+        return;
+    }
+
+    if (str_eq(cmd, "help"))
+    {
+        vga_puts("help  clear  echo  uname  whoami  history  ls  mkdir  pwd  date\n");
+        vga_puts("cat  rm  mv  cp  grep  wc  touch\n");
+        vga_puts("!N to run command N from history\n");
+        vga_puts("Piping & redirection: |  >  >>  <\n");
+        return;
+    }
+
+    if (str_eq(cmd, "clear"))
+    {
+        vga_clear();
+        return;
+    }
+
+    if (str_eq(cmd, "uname"))
+    {
+        vga_printf("%s\n", current_user);
+        return;
+    }
+
+    if (str_eq(cmd, "whoami"))
+    {
+        vga_printf("%s\n", current_user);
+        return;
+    }
+
+    if (str_starts_with(cmd, "echo "))
+    {
+        puts(cmd + 5);
+        putc('\n');
+        return;
+    }
+
+    if (str_eq(cmd, "echo"))
+    {
+        putc('\n');
+        return;
+    }
+
+    if (str_eq(cmd, "ls"))
+    {
+        fs_list();
+        return;
+    }
+
+    if (str_eq(cmd, "pwd"))
+    {
+        puts("/\n");
+        return;
+    }
+
+    if (str_eq(cmd, "date"))
+    {
+        cmd_date();
+        return;
+    }
+
+    if (str_starts_with(cmd, "mkdir "))
+    {
+        char dname[64];
+        char arg2[64];
+        int i;
+        for (i = 0; i < 64; i++) arg2[i] = 0;
+        parse_args(cmd + 6, dname, arg2);
+        if (dname[0] == '\0')
+        {
+            puts("mkdir: missing operand\n");
+        }
+        else if (fs_mkdir(dname) == 0)
+        {
+            puts("mkdir: created directory '");
+            puts(dname);
+            puts("'\n");
+        }
+        else
+        {
+            puts("mkdir: cannot create directory '");
+            puts(dname);
+            puts("'\n");
+        }
+        return;
+    }
+
+    if (str_eq(cmd, "mkdir"))
+    {
+        puts("mkdir: missing operand\n");
+        return;
+    }
+
+    if (str_starts_with(cmd, "cat "))
+    {
+        cmd_cat(cmd + 4);
+        return;
+    }
+
+    if (str_eq(cmd, "cat"))
+    {
+        puts("cat: missing operand\n");
+        return;
+    }
+
+    if (str_starts_with(cmd, "rm "))
+    {
+        cmd_rm(cmd + 3);
+        return;
+    }
+
+    if (str_eq(cmd, "rm"))
+    {
+        puts("rm: missing operand\n");
+        return;
+    }
+
+    if (str_starts_with(cmd, "mv "))
+    {
+        cmd_mv(cmd + 3);
+        return;
+    }
+
+    if (str_eq(cmd, "mv"))
+    {
+        puts("mv: missing operand\n");
+        return;
+    }
+
+    if (str_starts_with(cmd, "cp "))
+    {
+        cmd_cp(cmd + 3);
+        return;
+    }
+
+    if (str_eq(cmd, "cp"))
+    {
+        puts("cp: missing operand\n");
+        return;
+    }
+
+    if (str_starts_with(cmd, "grep "))
+    {
+        cmd_grep(cmd + 5);
+        return;
+    }
+
+    if (str_eq(cmd, "grep"))
+    {
+        puts("grep: missing pattern\n");
+        return;
+    }
+
+    if (str_starts_with(cmd, "wc "))
+    {
+        cmd_wc(cmd + 3);
+        return;
+    }
+
+    if (str_eq(cmd, "wc"))
+    {
+        puts("wc: missing operand\n");
+        return;
+    }
+
+    if (str_starts_with(cmd, "touch "))
+    {
+        char fname[64];
+        char arg2[64];
+        int i;
+        for (i = 0; i < 64; i++) arg2[i] = 0;
+        parse_args(cmd + 6, fname, arg2);
+        if (fname[0] == '\0')
+        {
+            puts("touch: missing operand\n");
+        }
+        else if (fs_exists(fname))
+        {
+            puts("touch: file '");
+            puts(fname);
+            puts("' already exists\n");
+        }
+        else if (fs_create(fname) == 0)
+        {
+            puts("touch: created '");
+            puts(fname);
+            puts("'\n");
+        }
+        else
+        {
+            puts("touch: failed to create '");
+            puts(fname);
+            puts("'\n");
+        }
+        return;
+    }
+
+    if (str_eq(cmd, "touch"))
+    {
+        puts("touch: missing operand\n");
+        return;
+    }
+
+    if (str_starts_with(cmd, "edit "))
+    {
+        char fname[64];
+        char arg2[64];
+        int i;
+        for (i = 0; i < 64; i++) arg2[i] = 0;
+        parse_args(cmd + 5, fname, arg2);
+        editor_open(fname);
+        editor_run();
+        return;
+    }
+
+    if (str_eq(cmd, "edit"))
+    {
+        editor_open(NULL);
+        editor_run();
+        return;
+    }
+
+    puts("command not found: ");
+    puts(cmd);
+    putc('\n');
 }
 
 void shell_exec(const char *line)
 {
     int i = 0;
     while (line[i] == ' ' || line[i] == '\t')
-    {
         i++;
-    }
-
     const char *cmd = &line[i];
     if (cmd[0] == '\0')
-    {
         return;
-    }
+
+    pipe_in_active = 0;
 
     if (cmd[0] == '!')
     {
@@ -205,88 +818,108 @@ void shell_exec(const char *line)
         }
     }
 
-    if (str_eq(cmd, "history"))
+    int append_pos = str_find(cmd, ">>");
+    int pos = str_find(cmd, ">");
+    int pipe_pos = str_find(cmd, "|");
+    int in_pos = str_find(cmd, "<");
+
+    if (append_pos >= 0)
     {
-        int count = history_get_count();
-        for (int h = 0; h < count; h++)
+        char left[256], fname[64], arg2[64];
+        int i;
+        for (i = 0; i < 64; i++) arg2[i] = 0;
+        str_cpy_n(left, cmd, append_pos + 1);
+        const char *fn = cmd + append_pos + 2;
+        while (*fn == ' ')
+            fn++;
+        parse_args(fn, fname, arg2);
+
+        cap_on = 1;
+        cap_len = 0;
+        exec_cmd(left);
+        cap_on = 0;
+        cap_buf[cap_len] = '\0';
+
+        if (!fs_exists(fname))
+            fs_create(fname);
+        fs_append(fname, cap_buf, cap_len);
+        return;
+    }
+
+    if (pos >= 0 && (append_pos < 0 || pos < append_pos))
+    {
+        char left[256], fname[64], arg2[64];
+        int i;
+        for (i = 0; i < 64; i++) arg2[i] = 0;
+        str_cpy_n(left, cmd, pos + 1);
+        const char *fn = cmd + pos + 1;
+        while (*fn == ' ')
+            fn++;
+        parse_args(fn, fname, arg2);
+
+        cap_on = 1;
+        cap_len = 0;
+        exec_cmd(left);
+        cap_on = 0;
+        cap_buf[cap_len] = '\0';
+
+        if (!fs_exists(fname))
+            fs_create(fname);
+        fs_write(fname, cap_buf, cap_len);
+        return;
+    }
+
+    if (pipe_pos >= 0)
+    {
+        char left[256], right[256];
+        str_cpy_n(left, cmd, pipe_pos + 1);
+        const char *r = cmd + pipe_pos + 1;
+        str_cpy_n(right, r, 255);
+
+        cap_on = 1;
+        cap_len = 0;
+        exec_cmd(left);
+        cap_on = 0;
+
+        pipe_in_len = cap_len;
+        for (int j = 0; j < cap_len; j++)
+            pipe_in[j] = cap_buf[j];
+        pipe_in_active = 1;
+
+        exec_cmd(right);
+        pipe_in_active = 0;
+        return;
+    }
+
+    if (in_pos >= 0)
+    {
+        char left[256], fname[64], arg2[64];
+        int i;
+        for (i = 0; i < 64; i++) arg2[i] = 0;
+        str_cpy_n(left, cmd, in_pos + 1);
+        const char *fn = cmd + in_pos + 1;
+        while (*fn == ' ')
+            fn++;
+        parse_args(fn, fname, arg2);
+
+        if (!fs_exists(fname))
         {
-            vga_printf("%d  %s\n", h, history_get(h));
+            vga_puts("input redirection: ");
+            vga_puts(fname);
+            vga_puts(": No such file\n");
+            return;
         }
+
+        pipe_in_len = fs_read(fname, pipe_in, (int)sizeof(pipe_in) - 1);
+        pipe_in[pipe_in_len] = '\0';
+        pipe_in_active = 1;
+
+        exec_cmd(left);
+        pipe_in_active = 0;
         return;
     }
 
-    if (str_eq(cmd, "help"))
-    {
-        vga_puts("help  clear  echo  uname  whoami  history  ls  mkdir  pwd  login\n");
-        vga_puts("!N to run command N from history\n");
-        return;
-    }
-
-    if (str_eq(cmd, "clear"))
-    {
-        vga_clear();
-        return;
-    }
-
-    if (str_eq(cmd, "uname"))
-    {
-        vga_printf("%s\n", current_user);
-        return;
-    }
-
-    if (str_eq(cmd, "whoami"))
-    {
-        vga_printf("%s\n", current_user);
-        return;
-    }
-
-    if (str_starts_with(cmd, "login "))
-    {
-        const char *new_user = cmd + 6;
-        int k = 0;
-        while (new_user[k] != '\0' && k < 31)
-        {
-            current_user[k] = new_user[k];
-            k++;
-        }
-        current_user[k] = '\0';
-        return;
-    }
-
-    if (str_starts_with(cmd, "echo "))
-    {
-        vga_puts(cmd + 5);
-        vga_puts("\n");
-        return;
-    }
-
-    if (str_eq(cmd, "ls"))
-    {
-        vga_puts(".  ..\n");
-        return;
-    }
-
-    if (str_eq(cmd, "pwd"))
-    {
-        vga_puts("/\n");
-        return;
-    }
-
-    if (str_starts_with(cmd, "mkdir "))
-    {
-        vga_puts("mkdir: cannot create directory: Read-only file system\n");
-        return;
-    }
-
-    if (str_eq(cmd, "mkdir"))
-    {
-        vga_puts("mkdir: missing operand\n");
-        return;
-    }
-
-    vga_puts("command not found: ");
-    vga_puts(cmd);
-    vga_puts("\n");
+    exec_cmd(cmd);
 }
 
 void shell_run(void)

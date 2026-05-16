@@ -1,4 +1,5 @@
 #include "idt.h"
+#include "io.h"
 
 struct idt_entry idt[256];
 struct idt_ptr idtp;
@@ -10,10 +11,6 @@ extern void idt_load(uint32_t);
 #define PIC2_COMMAND 0xA0
 #define PIC2_DATA 0xA1
 
-static inline void outb(uint16_t port, uint8_t val)
-{
-    __asm__ volatile("outb %0, %1" : : "a"(val), "Nd"(port));
-}
 
 void idt_set_gate(int n, uint32_t base, uint16_t sel, uint8_t flags)
 {
