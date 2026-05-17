@@ -1,6 +1,6 @@
 #include "pmm.h"
 
-#define MAX_BLOCKS 32768
+#define MAX_BLOCKS 32768  
 static uint32_t bitmap[MAX_BLOCKS / 32];
 static uint32_t total_blocks = 0;
 
@@ -23,7 +23,7 @@ void pmm_init(uint32_t mem_size) {
     }
 
     for (uint32_t i = 0; i < 256; i++) {
-        bitmap_set(i);
+        bitmap_set(i);  /* reserve first 1 MB (0x00000000 – 0x000FFFFF) for BIOS/kernel */
     }
 }
 
@@ -40,4 +40,14 @@ void *pmm_allocate_block() {
 void pmm_free_block(void *ptr) {
     uint32_t block = (uint32_t)ptr / PAGE_SIZE;
     bitmap_unset(block);
+}
+
+void pmm_mark_used(void *addr) {
+    uint32_t block = (uint32_t)addr / PAGE_SIZE;
+    bitmap_set(block);
+}
+
+int pmm_is_used(void *addr) {
+    uint32_t block = (uint32_t)addr / PAGE_SIZE;
+    return bitmap_test(block);
 }

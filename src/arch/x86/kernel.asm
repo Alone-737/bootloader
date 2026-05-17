@@ -13,4 +13,8 @@ _kernel_entry:
   hlt
   jmp $
 
+<<<<<<< HEAD
 times 512-($ - $$) db 0
+=======
+times 512-($ - $$) db 0  ; pad to 512 bytes so boot.asm can load exactly N sectors
+>>>>>>> f7fec4a (added new things and bug fixes)

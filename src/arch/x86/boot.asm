@@ -7,7 +7,13 @@ DATA_OFFSET equ 0x10
 KERNEL_LOAD_SEG equ 0x1000
 KERNEL_LOAD_OFFSET equ 0x0000
 KERNEL_START_ADDR equ 0x10000
+<<<<<<< HEAD
 KERNEL_SECTORS equ 55
+=======
+%ifndef KERNEL_SECTORS
+%define KERNEL_SECTORS 57
+%endif
+>>>>>>> f7fec4a (added new things and bug fixes)
 
 start:
   cli ;Clear interrupts
@@ -35,7 +41,7 @@ start:
   jc disk_read_error
 
 load_PM:
-  cli 
+  cli
   lgdt[gdt_descriptor]
   mov eax, cr0
   or al, 1
@@ -44,6 +50,7 @@ load_PM:
 
 disk_read_error:
   hlt
+  jmp disk_read_error
 
 [BITS 32]
 PModeMain:
@@ -56,7 +63,7 @@ PModeMain:
   mov ebp, 0x9C00
   mov esp, ebp
   
-  in al, 0x92
+  in al, 0x92       ; enable A20 gate via fast method
   or al, 2
   out 0x92, al
 

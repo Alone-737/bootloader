@@ -5,7 +5,11 @@
 #include "io.h"
 #include "editor.h"
 
+<<<<<<< HEAD
 static char current_user[4] = "root";
+=======
+static const char current_user[4] = "root";
+>>>>>>> f7fec4a (added new things and bug fixes)
 
 static int cap_on = 0;
 static char cap_buf[4096];
@@ -138,7 +142,7 @@ static char keyboard_getchar(void)
         {
         }
 
-        unsigned char scancode = inb(0x60);
+        signed char scancode = inb(0x60);
         if (scancode & 0x80)
         {
             continue;
@@ -152,32 +156,73 @@ static char keyboard_getchar(void)
     }
 }
 
-static int str_eq(const char *a, const char *b)
+static int str_contains(const char *s, const char *sub)
 {
-    int i = 0;
-    while (a[i] != '\0' && b[i] != '\0')
+    if (!s || !sub || sub[0] == '\0')
+        return 0;
+    for (int i = 0; s[i]; i++)
     {
-        if (a[i] != b[i])
-        {
-            return 0;
-        }
-        i++;
+        int j = 0;
+        while (sub[j] && s[i + j] == sub[j])
+            j++;
+        if (sub[j] == '\0')
+            return 1;
     }
-    return a[i] == b[i];
+    return 0;
 }
 
-static int str_starts_with(const char *s, const char *prefix)
+static int str_find(const char *s, const char *sub)
+{
+    if (!s || !sub || sub[0] == '\0')
+        return -1;
+    for (int i = 0; s[i]; i++)
+    {
+        int j = 0;
+        while (sub[j] && s[i + j] == sub[j])
+            j++;
+        if (sub[j] == '\0')
+            return i;
+    }
+    return -1;
+}
+
+static void str_cpy_n(char *dst, const char *src, int n)
 {
     int i = 0;
-    while (prefix[i] != '\0')
+    while (i < n - 1 && src[i])
     {
-        if (s[i] != prefix[i])
-        {
-            return 0;
-        }
+        dst[i] = src[i];
         i++;
     }
-    return 1;
+    dst[i] = '\0';
+}
+
+static int parse_args(const char *s, char *a1, char *a2)
+{
+    while (*s == ' ')
+        s++;
+    int i = 0;
+    while (s[i] && s[i] != ' ' && i < 63)
+    {
+        a1[i] = s[i];
+        i++;
+    }
+    a1[i] = '\0';
+    if (s[i] == '\0')
+        return 1;
+    while (s[i] == ' ')
+        i++;
+    if (s[i] == '\0')
+        return 1;
+    int j = 0;
+    while (s[i] && s[i] != ' ' && j < 63)
+    {
+        a2[j] = s[i];
+        i++;
+        j++;
+    }
+    a2[j] = '\0';
+    return 2;
 }
 
 static int str_contains(const char *s, const char *sub)
@@ -264,7 +309,11 @@ void shell_banner(void)
     vga_puts("Type 'help' for commands.\n\n");
 }
 
+<<<<<<< HEAD
 static unsigned char get_rtc_register(int reg)
+=======
+static signed char get_rtc_register(int reg)
+>>>>>>> f7fec4a (added new things and bug fixes)
 {
     outb(0x70, reg);
     return inb(0x71);
@@ -281,6 +330,7 @@ static int is_update_in_progress(void)
     return (inb(0x71) & 0x80);
 }
 
+<<<<<<< HEAD
 static void cmd_date(void)
 {
     while (is_update_in_progress())
@@ -293,6 +343,21 @@ static void cmd_date(void)
     unsigned char month = get_rtc_register(0x08);
     unsigned char year = get_rtc_register(0x09);
     unsigned char statusB = get_rtc_register(0x0B);
+=======
+static void cmd_date(const char *args)
+{
+    (void)args;
+    while (is_update_in_progress())
+        ;
+
+    signed char second = get_rtc_register(0x00);
+    signed char minute = get_rtc_register(0x02);
+    signed char hour = get_rtc_register(0x04);
+    signed char day = get_rtc_register(0x07);
+    signed char month = get_rtc_register(0x08);
+    signed char year = get_rtc_register(0x09);
+    signed char statusB = get_rtc_register(0x0B);
+>>>>>>> f7fec4a (added new things and bug fixes)
 
     if (!(statusB & 0x04))
     {
@@ -544,11 +609,158 @@ static void cmd_wc(const char *args)
     putc('\n');
 }
 
+<<<<<<< HEAD
+=======
+static void cmd_help(const char *args)
+{
+    (void)args;
+    vga_puts("help  clear  echo  uname  whoami  history  ls  mkdir  pwd  date\n");
+    vga_puts("cat  rm  mv  cp  grep  wc  touch\n");
+    vga_puts("!N to run command N from history\n");
+    vga_puts("Piping & redirection: |  >  >>  <\n");
+}
+
+static void cmd_clear(const char *args)
+{
+    (void)args;
+    vga_clear();
+}
+
+static void cmd_echo(const char *args)
+{
+    if (args[0] == '\0')
+    {
+        putc('\n');
+    }
+    else
+    {
+        puts(args);
+        putc('\n');
+    }
+}
+
+static void cmd_uname(const char *args)
+{
+    (void)args;
+    vga_printf("%s\n", current_user);
+}
+
+static void cmd_whoami(const char *args)
+{
+    (void)args;
+    vga_printf("%s\n", current_user);
+}
+
+static void cmd_history(const char *args)
+{
+    (void)args;
+    int count = history_get_count();
+    for (int h = 0; h < count; h++)
+    {
+        vga_printf("%d  %s\n", h, history_get(h));
+    }
+}
+
+static void cmd_ls(const char *args)
+{
+    (void)args;
+    fs_list();
+}
+
+static void cmd_pwd(const char *args)
+{
+    (void)args;
+    puts("/\n");
+}
+
+static void cmd_touch(const char *args)
+{
+    if (args[0] == '\0')
+    {
+        puts("touch: missing operand\n");
+        return;
+    }
+    char fname[64];
+    char arg2[64];
+    for (int i = 0; i < 64; i++) arg2[i] = 0;
+    parse_args(args, fname, arg2);
+    if (fname[0] == '\0')
+    {
+        puts("touch: missing operand\n");
+    }
+    else if (fs_exists(fname))
+    {
+        puts("touch: file '");
+        puts(fname);
+        puts("' already exists\n");
+    }
+    else if (fs_create(fname) == 0)
+    {
+        puts("touch: created '");
+        puts(fname);
+        puts("'\n");
+    }
+    else
+    {
+        puts("touch: failed to create '");
+        puts(fname);
+        puts("'\n");
+    }
+}
+
+static void cmd_mkdir(const char *args)
+{
+    if (args[0] == '\0')
+    {
+        puts("mkdir: missing operand\n");
+        return;
+    }
+    char dname[64];
+    char arg2[64];
+    for (int i = 0; i < 64; i++) arg2[i] = 0;
+    parse_args(args, dname, arg2);
+    if (dname[0] == '\0')
+    {
+        puts("mkdir: missing operand\n");
+    }
+    else if (fs_mkdir(dname) == 0)
+    {
+        puts("mkdir: created directory '");
+        puts(dname);
+        puts("'\n");
+    }
+    else
+    {
+        puts("mkdir: cannot create directory '");
+        puts(dname);
+        puts("'\n");
+    }
+}
+
+static void cmd_edit(const char *args)
+{
+    if (args[0] == '\0')
+    {
+        editor_open(NULL);
+    }
+    else
+    {
+        char fname[64];
+        char arg2[64];
+        for (int i = 0; i < 64; i++) arg2[i] = 0;
+        parse_args(args, fname, arg2);
+        editor_open(fname);
+    }
+    editor_run();
+}
+
+>>>>>>> f7fec4a (added new things and bug fixes)
 static void exec_cmd(const char *cmd)
 {
     if (cmd[0] == '\0')
         return;
 
+<<<<<<< HEAD
     if (str_eq(cmd, "history"))
     {
         int count = history_get_count();
@@ -776,6 +988,53 @@ static void exec_cmd(const char *cmd)
         editor_open(NULL);
         editor_run();
         return;
+=======
+    static const struct {
+        const char *name;
+        void (*handler)(const char *);
+    } cmd_table[] = {
+        {"help",    cmd_help},
+        {"clear",   cmd_clear},
+        {"echo",    cmd_echo},
+        {"uname",   cmd_uname},
+        {"whoami",  cmd_whoami},
+        {"history", cmd_history},
+        {"ls",      cmd_ls},
+        {"pwd",     cmd_pwd},
+        {"date",    cmd_date},
+        {"cat",     cmd_cat},
+        {"rm",      cmd_rm},
+        {"mv",      cmd_mv},
+        {"cp",      cmd_cp},
+        {"grep",    cmd_grep},
+        {"wc",      cmd_wc},
+        {"touch",   cmd_touch},
+        {"mkdir",   cmd_mkdir},
+        {"edit",    cmd_edit},
+    };
+    int ncmds = sizeof(cmd_table) / sizeof(cmd_table[0]);
+
+    /* match: exact "cmd" or prefix "cmd <args>" */
+    for (int i = 0; i < ncmds; i++)
+    {
+        int j = 0;
+        while (cmd_table[i].name[j] && cmd[j] && cmd_table[i].name[j] == cmd[j])
+            j++;
+
+        if (cmd_table[i].name[j] == '\0')
+        {
+            if (cmd[j] == '\0')
+            {
+                cmd_table[i].handler("");
+                return;
+            }
+            if (cmd[j] == ' ')
+            {
+                cmd_table[i].handler(cmd + j + 1);
+                return;
+            }
+        }
+>>>>>>> f7fec4a (added new things and bug fixes)
     }
 
     puts("command not found: ");

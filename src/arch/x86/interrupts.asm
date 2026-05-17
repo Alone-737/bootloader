@@ -66,7 +66,7 @@ exception_common_stub:
     add esp, 4
     
     popad
-    add esp, 8
+    add esp, 8       ; pop exception number and error code pushed by macro
     iretd
 
 global keyboard_handler_asm

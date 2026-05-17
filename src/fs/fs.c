@@ -4,7 +4,11 @@
 
 static int str_eq(const char *a, const char *b)
 {
+<<<<<<< HEAD
     int i = 0;
+=======
+    signed int i = 0;
+>>>>>>> f7fec4a (added new things and bug fixes)
     while (a[i] && b[i])
     {
         if (a[i] != b[i])
@@ -16,7 +20,11 @@ static int str_eq(const char *a, const char *b)
 
 static int str_len(const char *s)
 {
+<<<<<<< HEAD
     int i = 0;
+=======
+    signed int i = 0;
+>>>>>>> f7fec4a (added new things and bug fixes)
     while (s[i])
         i++;
     return i;
@@ -24,7 +32,11 @@ static int str_len(const char *s)
 
 static void str_cpy(char *dst, const char *src)
 {
+<<<<<<< HEAD
     int i = 0;
+=======
+    signed int i = 0;
+>>>>>>> f7fec4a (added new things and bug fixes)
     while (src[i])
     {
         dst[i] = src[i];

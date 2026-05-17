@@ -17,6 +17,7 @@ void shoot_on_your_own_foot()
         *bss++ = 0;
 
     idt_init();
+    __asm__ volatile("sti"); 
     vga_init();
     pmm_init(DEFAULT_MEM_SIZE);
     kheap_init();
