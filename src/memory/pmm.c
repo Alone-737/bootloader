@@ -1,6 +1,5 @@
 #include "pmm.h"
 
-#define MAX_BLOCKS 32768  
 static uint32_t bitmap[MAX_BLOCKS / 32];
 static uint32_t total_blocks = 0;
 

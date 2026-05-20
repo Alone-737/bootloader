@@ -4,12 +4,9 @@
 #include "fs.h"
 #include "io.h"
 #include "editor.h"
+#include "keyboard.h"
 
-<<<<<<< HEAD
-static char current_user[4] = "root";
-=======
 static const char current_user[4] = "root";
->>>>>>> f7fec4a (added new things and bug fixes)
 
 static int cap_on = 0;
 static char cap_buf[4096];
@@ -38,191 +35,6 @@ static void puts(const char *s)
         return;
     for (int i = 0; s[i]; i++)
         putc(s[i]);
-}
-
-static const char scancode_map[128] = {
-    0,
-    27,
-    '1',
-    '2',
-    '3',
-    '4',
-    '5',
-    '6',
-    '7',
-    '8',
-    '9',
-    '0',
-    '-',
-    '=',
-    '\b',
-    '\t',
-    'q',
-    'w',
-    'e',
-    'r',
-    't',
-    'y',
-    'u',
-    'i',
-    'o',
-    'p',
-    '[',
-    ']',
-    '\n',
-    0,
-    'a',
-    's',
-    'd',
-    'f',
-    'g',
-    'h',
-    'j',
-    'k',
-    'l',
-    ';',
-    '\'',
-    '`',
-    0,
-    '\\',
-    'z',
-    'x',
-    'c',
-    'v',
-    'b',
-    'n',
-    'm',
-    ',',
-    '.',
-    '/',
-    0,
-    '*',
-    0,
-    ' ',
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    '7',
-    '8',
-    '9',
-    '-',
-    '4',
-    '5',
-    '6',
-    '+',
-    '1',
-    '2',
-    '3',
-    '0',
-    '.',
-    0,
-    0,
-};
-
-static char keyboard_getchar(void)
-{
-    for (;;)
-    {
-        while ((inb(0x64) & 0x01) == 0)
-        {
-        }
-
-        signed char scancode = inb(0x60);
-        if (scancode & 0x80)
-        {
-            continue;
-        }
-
-        char c = scancode_map[scancode];
-        if (c != 0)
-        {
-            return c;
-        }
-    }
-}
-
-static int str_contains(const char *s, const char *sub)
-{
-    if (!s || !sub || sub[0] == '\0')
-        return 0;
-    for (int i = 0; s[i]; i++)
-    {
-        int j = 0;
-        while (sub[j] && s[i + j] == sub[j])
-            j++;
-        if (sub[j] == '\0')
-            return 1;
-    }
-    return 0;
-}
-
-static int str_find(const char *s, const char *sub)
-{
-    if (!s || !sub || sub[0] == '\0')
-        return -1;
-    for (int i = 0; s[i]; i++)
-    {
-        int j = 0;
-        while (sub[j] && s[i + j] == sub[j])
-            j++;
-        if (sub[j] == '\0')
-            return i;
-    }
-    return -1;
-}
-
-static void str_cpy_n(char *dst, const char *src, int n)
-{
-    int i = 0;
-    while (i < n - 1 && src[i])
-    {
-        dst[i] = src[i];
-        i++;
-    }
-    dst[i] = '\0';
-}
-
-static int parse_args(const char *s, char *a1, char *a2)
-{
-    while (*s == ' ')
-        s++;
-    int i = 0;
-    while (s[i] && s[i] != ' ' && i < 63)
-    {
-        a1[i] = s[i];
-        i++;
-    }
-    a1[i] = '\0';
-    if (s[i] == '\0')
-        return 1;
-    while (s[i] == ' ')
-        i++;
-    if (s[i] == '\0')
-        return 1;
-    int j = 0;
-    while (s[i] && s[i] != ' ' && j < 63)
-    {
-        a2[j] = s[i];
-        i++;
-        j++;
-    }
-    a2[j] = '\0';
-    return 2;
 }
 
 static int str_contains(const char *s, const char *sub)
@@ -297,23 +109,18 @@ static int parse_args(const char *s, char *a1, char *a2)
 static void print_prompt(void)
 {
     vga_set_color(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK);
-    vga_printf("%s@bootsh$ ", current_user);
+    vga_puts("root@bootsh$ ");
     vga_set_color(VGA_COLOR_WHITE, VGA_COLOR_BLACK);
 }
 
 void shell_banner(void)
 {
-    vga_init();
     vga_set_color(VGA_COLOR_WHITE, VGA_COLOR_BLACK);
     vga_puts("I am too lazy to write a proper shell name \n");
     vga_puts("Type 'help' for commands.\n\n");
 }
 
-<<<<<<< HEAD
-static unsigned char get_rtc_register(int reg)
-=======
 static signed char get_rtc_register(int reg)
->>>>>>> f7fec4a (added new things and bug fixes)
 {
     outb(0x70, reg);
     return inb(0x71);
@@ -330,20 +137,6 @@ static int is_update_in_progress(void)
     return (inb(0x71) & 0x80);
 }
 
-<<<<<<< HEAD
-static void cmd_date(void)
-{
-    while (is_update_in_progress())
-        ;
-
-    unsigned char second = get_rtc_register(0x00);
-    unsigned char minute = get_rtc_register(0x02);
-    unsigned char hour = get_rtc_register(0x04);
-    unsigned char day = get_rtc_register(0x07);
-    unsigned char month = get_rtc_register(0x08);
-    unsigned char year = get_rtc_register(0x09);
-    unsigned char statusB = get_rtc_register(0x0B);
-=======
 static void cmd_date(const char *args)
 {
     (void)args;
@@ -357,7 +150,6 @@ static void cmd_date(const char *args)
     signed char month = get_rtc_register(0x08);
     signed char year = get_rtc_register(0x09);
     signed char statusB = get_rtc_register(0x0B);
->>>>>>> f7fec4a (added new things and bug fixes)
 
     if (!(statusB & 0x04))
     {
@@ -609,8 +401,6 @@ static void cmd_wc(const char *args)
     putc('\n');
 }
 
-<<<<<<< HEAD
-=======
 static void cmd_help(const char *args)
 {
     (void)args;
@@ -754,241 +544,11 @@ static void cmd_edit(const char *args)
     editor_run();
 }
 
->>>>>>> f7fec4a (added new things and bug fixes)
 static void exec_cmd(const char *cmd)
 {
     if (cmd[0] == '\0')
         return;
 
-<<<<<<< HEAD
-    if (str_eq(cmd, "history"))
-    {
-        int count = history_get_count();
-        for (int h = 0; h < count; h++)
-        {
-            vga_printf("%d  %s\n", h, history_get(h));
-        }
-        return;
-    }
-
-    if (str_eq(cmd, "help"))
-    {
-        vga_puts("help  clear  echo  uname  whoami  history  ls  mkdir  pwd  date\n");
-        vga_puts("cat  rm  mv  cp  grep  wc  touch\n");
-        vga_puts("!N to run command N from history\n");
-        vga_puts("Piping & redirection: |  >  >>  <\n");
-        return;
-    }
-
-    if (str_eq(cmd, "clear"))
-    {
-        vga_clear();
-        return;
-    }
-
-    if (str_eq(cmd, "uname"))
-    {
-        vga_printf("%s\n", current_user);
-        return;
-    }
-
-    if (str_eq(cmd, "whoami"))
-    {
-        vga_printf("%s\n", current_user);
-        return;
-    }
-
-    if (str_starts_with(cmd, "echo "))
-    {
-        puts(cmd + 5);
-        putc('\n');
-        return;
-    }
-
-    if (str_eq(cmd, "echo"))
-    {
-        putc('\n');
-        return;
-    }
-
-    if (str_eq(cmd, "ls"))
-    {
-        fs_list();
-        return;
-    }
-
-    if (str_eq(cmd, "pwd"))
-    {
-        puts("/\n");
-        return;
-    }
-
-    if (str_eq(cmd, "date"))
-    {
-        cmd_date();
-        return;
-    }
-
-    if (str_starts_with(cmd, "mkdir "))
-    {
-        char dname[64];
-        char arg2[64];
-        int i;
-        for (i = 0; i < 64; i++) arg2[i] = 0;
-        parse_args(cmd + 6, dname, arg2);
-        if (dname[0] == '\0')
-        {
-            puts("mkdir: missing operand\n");
-        }
-        else if (fs_mkdir(dname) == 0)
-        {
-            puts("mkdir: created directory '");
-            puts(dname);
-            puts("'\n");
-        }
-        else
-        {
-            puts("mkdir: cannot create directory '");
-            puts(dname);
-            puts("'\n");
-        }
-        return;
-    }
-
-    if (str_eq(cmd, "mkdir"))
-    {
-        puts("mkdir: missing operand\n");
-        return;
-    }
-
-    if (str_starts_with(cmd, "cat "))
-    {
-        cmd_cat(cmd + 4);
-        return;
-    }
-
-    if (str_eq(cmd, "cat"))
-    {
-        puts("cat: missing operand\n");
-        return;
-    }
-
-    if (str_starts_with(cmd, "rm "))
-    {
-        cmd_rm(cmd + 3);
-        return;
-    }
-
-    if (str_eq(cmd, "rm"))
-    {
-        puts("rm: missing operand\n");
-        return;
-    }
-
-    if (str_starts_with(cmd, "mv "))
-    {
-        cmd_mv(cmd + 3);
-        return;
-    }
-
-    if (str_eq(cmd, "mv"))
-    {
-        puts("mv: missing operand\n");
-        return;
-    }
-
-    if (str_starts_with(cmd, "cp "))
-    {
-        cmd_cp(cmd + 3);
-        return;
-    }
-
-    if (str_eq(cmd, "cp"))
-    {
-        puts("cp: missing operand\n");
-        return;
-    }
-
-    if (str_starts_with(cmd, "grep "))
-    {
-        cmd_grep(cmd + 5);
-        return;
-    }
-
-    if (str_eq(cmd, "grep"))
-    {
-        puts("grep: missing pattern\n");
-        return;
-    }
-
-    if (str_starts_with(cmd, "wc "))
-    {
-        cmd_wc(cmd + 3);
-        return;
-    }
-
-    if (str_eq(cmd, "wc"))
-    {
-        puts("wc: missing operand\n");
-        return;
-    }
-
-    if (str_starts_with(cmd, "touch "))
-    {
-        char fname[64];
-        char arg2[64];
-        int i;
-        for (i = 0; i < 64; i++) arg2[i] = 0;
-        parse_args(cmd + 6, fname, arg2);
-        if (fname[0] == '\0')
-        {
-            puts("touch: missing operand\n");
-        }
-        else if (fs_exists(fname))
-        {
-            puts("touch: file '");
-            puts(fname);
-            puts("' already exists\n");
-        }
-        else if (fs_create(fname) == 0)
-        {
-            puts("touch: created '");
-            puts(fname);
-            puts("'\n");
-        }
-        else
-        {
-            puts("touch: failed to create '");
-            puts(fname);
-            puts("'\n");
-        }
-        return;
-    }
-
-    if (str_eq(cmd, "touch"))
-    {
-        puts("touch: missing operand\n");
-        return;
-    }
-
-    if (str_starts_with(cmd, "edit "))
-    {
-        char fname[64];
-        char arg2[64];
-        int i;
-        for (i = 0; i < 64; i++) arg2[i] = 0;
-        parse_args(cmd + 5, fname, arg2);
-        editor_open(fname);
-        editor_run();
-        return;
-    }
-
-    if (str_eq(cmd, "edit"))
-    {
-        editor_open(NULL);
-        editor_run();
-        return;
-=======
     static const struct {
         const char *name;
         void (*handler)(const char *);
@@ -1014,7 +574,6 @@ static void exec_cmd(const char *cmd)
     };
     int ncmds = sizeof(cmd_table) / sizeof(cmd_table[0]);
 
-    /* match: exact "cmd" or prefix "cmd <args>" */
     for (int i = 0; i < ncmds; i++)
     {
         int j = 0;
@@ -1034,7 +593,6 @@ static void exec_cmd(const char *cmd)
                 return;
             }
         }
->>>>>>> f7fec4a (added new things and bug fixes)
     }
 
     puts("command not found: ");

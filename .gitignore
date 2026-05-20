@@ -1,6 +1,7 @@
 # Build artifacts
 bin/
 build/
+docs/
 
 # Compiled files
 *.o
@@ -23,7 +24,6 @@ build/
 *.bak
 todo
 ARCHITECTURE.md
-
 # Tags / cscope
 tags
 cscope.out

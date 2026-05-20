@@ -31,7 +31,7 @@ void pic_remap()
     outb(PIC2_DATA, 0x02);
     outb(PIC1_DATA, 0x01);
     outb(PIC2_DATA, 0x01);
-    outb(PIC1_DATA, 0xFD); 
+    outb(PIC1_DATA, 0xFC);
     outb(PIC2_DATA, 0xFF);
 }
 
@@ -115,6 +115,9 @@ void idt_init()
 
     extern void keyboard_handler_asm();
     idt_set_gate(0x21, (uint32_t)keyboard_handler_asm, 0x08, 0x8E);
+
+    extern void timer_handler_asm();
+    idt_set_gate(0x20, (uint32_t)timer_handler_asm, 0x08, 0x8E);
 
     idt_load((uint32_t)&idtp);
 }

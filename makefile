@@ -1,4 +1,4 @@
-FILES = ./build/kernel.asm.o ./build/interrupts.o ./build/kernel.o ./build/vga.o ./build/idt.o ./build/exceptions.o ./build/pmm.o ./build/kheap.o ./build/shell.o ./build/history.o ./build/keyboard.o ./build/fs.o ./build/vfs.o ./build/editor.o
+FILES = ./build/kernel.asm.o ./build/interrupts.o ./build/kernel.o ./build/vga.o ./build/vga13h.o ./build/idt.o ./build/exceptions.o ./build/pmm.o ./build/paging.o ./build/kheap.o ./build/shell.o ./build/history.o ./build/keyboard.o ./build/timer.o ./build/fs.o ./build/vfs.o ./build/editor.o
 FLAGS = -g -ffreestanding -nostdlib -nostartfiles -nodefaultlibs -Wall -O0 -I./src/arch/x86 -I./src/drivers -I./src/kernel -I./src/memory -I./src/shell -I./src/fs -I./src/include -I./src/editor -fno-asynchronous-unwind-tables -fno-exceptions -fno-stack-protector -fno-builtin -m32 -Wa,--32
 
 all: ./bin/os.bin
@@ -14,8 +14,14 @@ all: ./bin/os.bin
 ./build/interrupts.o: ./src/arch/x86/interrupts.asm
 	nasm -f elf -g ./src/arch/x86/interrupts.asm -o ./build/interrupts.o
 
+./build/kernel.o: ./src/kernel/kernel.c ./src/kernel/kernel.h
+	gcc $(FLAGS) -std=gnu99 -c ./src/kernel/kernel.c -o ./build/kernel.o
+
 ./build/vga.o: ./src/drivers/vga.c ./src/drivers/vga.h
 	gcc $(FLAGS) -std=gnu99 -c ./src/drivers/vga.c -o ./build/vga.o
+
+./build/vga13h.o: ./src/drivers/vga13h.c ./src/drivers/vga13h.h
+	gcc $(FLAGS) -std=gnu99 -c ./src/drivers/vga13h.c -o ./build/vga13h.o
 
 ./build/idt.o: ./src/arch/x86/idt.c ./src/arch/x86/idt.h
 	gcc $(FLAGS) -std=gnu99 -c ./src/arch/x86/idt.c -o ./build/idt.o
@@ -25,19 +31,14 @@ all: ./bin/os.bin
 
 ./build/pmm.o: ./src/memory/pmm.c ./src/memory/pmm.h
 	gcc $(FLAGS) -std=gnu99 -c ./src/memory/pmm.c -o ./build/pmm.o
-<<<<<<< HEAD
-	gcc $(FLAGS) -std=gnu99 -c ./src/memory/kheap.c -o ./build/kheap.o
-	gcc $(FLAGS) -std=gnu99 -c ./src/fs/vfs.c -o ./build/vfs.o
-=======
+
+./build/paging.o: ./src/memory/paging.c ./src/memory/paging.h
+	gcc $(FLAGS) -std=gnu99 -c ./src/memory/paging.c -o ./build/paging.o
 
 ./build/kheap.o: ./src/memory/kheap.c ./src/memory/kheap.h ./src/memory/pmm.h
 	gcc $(FLAGS) -std=gnu99 -c ./src/memory/kheap.c -o ./build/kheap.o
 
-./build/vfs.o: ./src/fs/vfs.c ./src/fs/vfs.h
-	gcc $(FLAGS) -std=gnu99 -c ./src/fs/vfs.c -o ./build/vfs.o
-
 ./build/shell.o: ./src/shell/shell.c ./src/shell/shell.h
->>>>>>> f7fec4a (added new things and bug fixes)
 	gcc $(FLAGS) -std=gnu99 -c ./src/shell/shell.c -o ./build/shell.o
 
 ./build/history.o: ./src/shell/history.c ./src/shell/history.h
@@ -45,23 +46,20 @@ all: ./bin/os.bin
 
 ./build/keyboard.o: ./src/drivers/keyboard.c ./src/drivers/keyboard.h
 	gcc $(FLAGS) -std=gnu99 -c ./src/drivers/keyboard.c -o ./build/keyboard.o
-<<<<<<< HEAD
-	gcc $(FLAGS) -std=gnu99 -c ./src/fs/fs.c -o ./build/fs.o
-	gcc $(FLAGS) -std=gnu99 -c ./src/kernel/kernel.c -o ./build/kernel.o
-	gcc $(FLAGS) -std=gnu99 -c ./src/editor/editor.c -o ./build/editor.o
-=======
+
+./build/timer.o: ./src/drivers/timer.c ./src/drivers/timer.h
+	gcc $(FLAGS) -std=gnu99 -c ./src/drivers/timer.c -o ./build/timer.o
 
 ./build/fs.o: ./src/fs/fs.c ./src/fs/fs.h
 	gcc $(FLAGS) -std=gnu99 -c ./src/fs/fs.c -o ./build/fs.o
 
-./build/kernel.o: ./src/kernel/kernel.c ./src/kernel/kernel.h
-	gcc $(FLAGS) -std=gnu99 -c ./src/kernel/kernel.c -o ./build/kernel.o
+./build/vfs.o: ./src/fs/vfs.c ./src/fs/vfs.h
+	gcc $(FLAGS) -std=gnu99 -c ./src/fs/vfs.c -o ./build/vfs.o
 
 ./build/editor.o: ./src/editor/editor.c ./src/editor/editor.h
 	gcc $(FLAGS) -std=gnu99 -c ./src/editor/editor.c -o ./build/editor.o
 
 ./build/kernel.elf: $(FILES) ./linkerscript.ld
->>>>>>> f7fec4a (added new things and bug fixes)
 	ld -m elf_i386 -g -relocatable $(FILES) -o ./build/completeKernel.o
 	gcc $(FLAGS) -T ./linkerscript.ld -o ./build/kernel.elf -ffreestanding -O0 -nostdlib ./build/completeKernel.o
 
@@ -70,27 +68,11 @@ all: ./bin/os.bin
 
 ./bin/os.bin: ./bin/boot.bin ./bin/kernel.bin
 	truncate -s 0 ./bin/os.bin
-	dd if=./bin/boot.bin >> ./bin/os.bin
-	dd if=./bin/kernel.bin >> ./bin/os.bin
-	dd if=/dev/zero bs=512 count=8 >> ./bin/os.bin
+	dd if=./bin/boot.bin status=none >> ./bin/os.bin
+	dd if=./bin/kernel.bin status=none >> ./bin/os.bin
+	dd if=/dev/zero bs=512 count=8 status=none >> ./bin/os.bin
 
 clean:
-	rm -rf ./bin/boot.bin
-	rm -rf ./bin/kernel.bin
-	rm -rf ./bin/os.bin
-	rm -rf ./build/kernel.asm.o
-	rm -rf ./build/interrupts.o
-	rm -rf ./build/fs.o
-	rm -rf ./build/kernel.o
-	rm -rf ./build/editor.o
-	rm -rf ./build/vga.o
-	rm -rf ./build/idt.o
-	rm -rf ./build/exceptions.o
-	rm -rf ./build/pmm.o
-	rm -rf ./build/kheap.o
-	rm -rf ./build/vfs.o
-	rm -rf ./build/shell.o
-	rm -rf ./build/history.o
-	rm -rf ./build/keyboard.o
-	rm -rf ./build/completeKernel.o
-	rm -rf ./build/kernel.elf
+	rm -rf ./bin/*.bin
+	rm -rf ./build/*.o
+	rm -rf ./build/*.elf

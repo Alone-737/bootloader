@@ -7,13 +7,9 @@ DATA_OFFSET equ 0x10
 KERNEL_LOAD_SEG equ 0x1000
 KERNEL_LOAD_OFFSET equ 0x0000
 KERNEL_START_ADDR equ 0x10000
-<<<<<<< HEAD
-KERNEL_SECTORS equ 55
-=======
 %ifndef KERNEL_SECTORS
 %define KERNEL_SECTORS 57
 %endif
->>>>>>> f7fec4a (added new things and bug fixes)
 
 start:
   cli ;Clear interrupts
@@ -39,6 +35,9 @@ start:
   int 0x13
 
   jc disk_read_error
+
+  mov ax, 0x0013
+  int 0x10
 
 load_PM:
   cli

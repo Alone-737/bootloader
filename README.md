@@ -104,7 +104,7 @@ gdb ./bin/kernel.bin
 
 ## Time Spent
 
-- ~16hours
+- ~25hours
 
 ## License
 

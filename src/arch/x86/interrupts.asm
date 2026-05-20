@@ -79,3 +79,14 @@ keyboard_handler_asm:
     out 0x20, al
     popad
     iretd
+
+global timer_handler_asm
+extern timer_handler
+timer_handler_asm:
+    pushad
+    cld
+    call timer_handler
+    mov al, 0x20
+    out 0x20, al
+    popad
+    iretd
