@@ -1,5 +1,6 @@
 #include "vga.h"
 #include "idt.h"
+#include "errors.h"
 
 char *exception_messages[] = {
     "Division By Zero",
@@ -36,9 +37,5 @@ char *exception_messages[] = {
 
 void exception_handler(int n)
 {
-    vga_set_color(VGA_COLOR_WHITE, VGA_COLOR_RED);
-    vga_printf("\nEXCEPTION: %s (%d)\n", exception_messages[n], n);
-    vga_puts("System Halted.");
-    for (;;)
-        ;
+    panic("EXCEPTION: %s (%d)", exception_messages[n], n);
 }

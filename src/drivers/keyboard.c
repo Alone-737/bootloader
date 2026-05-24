@@ -16,6 +16,15 @@ static const signed char scancode_map[128] = {
     '7', '8', '9', '-', '4', '5', '6', '+', '1', '2', '3', '0', '.', 0, 0,
 };
 
+static const signed char scancode_map_shift[128] = {
+    0, 27, '!', '@', '#', '$', '%', '^', '&', '*', '(', ')', '_', '+', '\b', '\t',
+    'Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P', '{', '}', '\n', 0,
+    'A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L', ':', '"', '~', 0, '|',
+    'Z', 'X', 'C', 'V', 'B', 'N', 'M', '<', '>', '?', 0, '*', 0, ' ',
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    '7', '8', '9', '-', '4', '5', '6', '+', '1', '2', '3', '0', '.', 0, 0,
+};
+
 static int shift_pressed = 0;
 
 void keyboard_init(void)
@@ -63,14 +72,10 @@ static char translate_scancode(unsigned char scancode)
     if (scancode >= 128)
         return 0;
 
-    char c = scancode_map[scancode];
-    if (c == 0)
-        return 0;
+    if (shift_pressed)
+        return scancode_map_shift[scancode];
 
-    if (shift_pressed && c >= 'a' && c <= 'z')
-        c -= 32;
-
-    return c;
+    return scancode_map[scancode];
 }
 
 char keyboard_getchar(void)

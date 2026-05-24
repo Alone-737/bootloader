@@ -1,4 +1,4 @@
-FILES = ./build/kernel.asm.o ./build/interrupts.o ./build/kernel.o ./build/vga.o ./build/vga13h.o ./build/idt.o ./build/exceptions.o ./build/pmm.o ./build/paging.o ./build/kheap.o ./build/shell.o ./build/history.o ./build/keyboard.o ./build/timer.o ./build/fs.o ./build/vfs.o ./build/editor.o
+FILES = ./build/kernel.asm.o ./build/interrupts.o ./build/kernel.o ./build/errors.o ./build/vga.o ./build/vga13h.o ./build/idt.o ./build/exceptions.o ./build/pmm.o ./build/paging.o ./build/kheap.o ./build/shell.o ./build/history.o ./build/keyboard.o ./build/timer.o ./build/fs.o ./build/vfs.o ./build/editor.o
 FLAGS = -g -ffreestanding -nostdlib -nostartfiles -nodefaultlibs -Wall -O0 -I./src/arch/x86 -I./src/drivers -I./src/kernel -I./src/memory -I./src/shell -I./src/fs -I./src/include -I./src/editor -fno-asynchronous-unwind-tables -fno-exceptions -fno-stack-protector -fno-builtin -m32 -Wa,--32
 
 all: ./bin/os.bin
@@ -16,6 +16,9 @@ all: ./bin/os.bin
 
 ./build/kernel.o: ./src/kernel/kernel.c ./src/kernel/kernel.h
 	gcc $(FLAGS) -std=gnu99 -c ./src/kernel/kernel.c -o ./build/kernel.o
+
+./build/errors.o: ./src/kernel/errors.c ./src/include/errors.h
+	gcc $(FLAGS) -std=gnu99 -c ./src/kernel/errors.c -o ./build/errors.o
 
 ./build/vga.o: ./src/drivers/vga.c ./src/drivers/vga.h
 	gcc $(FLAGS) -std=gnu99 -c ./src/drivers/vga.c -o ./build/vga.o

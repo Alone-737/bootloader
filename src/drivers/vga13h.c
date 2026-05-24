@@ -7,7 +7,7 @@ static int vga_y = 0;
 static uint8_t vga_fg = 15;
 static uint8_t vga_bg = 0;
 
-#include "font8x16.h"
+#include "font8x8.h"
 
 void vga13h_init(void)
 {
@@ -39,7 +39,7 @@ void vga13h_putchar(int x, int y, char c, uint8_t fg, uint8_t bg)
 
     for (int row = 0; row < VGA13H_FONT_H; row++)
     {
-        uint8_t bits = font8x16[idx][row];
+        uint8_t bits = font8x8[idx][row];
         for (int col = 0; col < VGA13H_FONT_W; col++)
         {
             int px = x + col;
@@ -133,7 +133,6 @@ void vga13h_puts(const char *s)
             if (vga_x + 1 + word_len >= VGA13H_COLS)
             {
                 vga13h_putchar_console('\n');
-                i++;
                 continue;
             }
         }

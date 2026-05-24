@@ -1,5 +1,6 @@
 #include "kheap.h"
 #include "pmm.h"
+#include "errors.h"
 
 struct block_header
 {
@@ -20,10 +21,7 @@ void kheap_init(void)
     {
         void *addr = (void *)(KHEAP_START + i * PAGE_SIZE);
         if (pmm_is_used(addr))
-        {
-            for (;;)
-                ;
-        }
+            panic("kheap: page 0x%x already in use", addr);
         pmm_mark_used(addr);
     }
 
@@ -52,10 +50,7 @@ void *kmalloc(size_t size)
     while (curr)
     {
         if (curr->magic != KHEAP_MAGIC)
-        {
-            for (;;)
-                ;
-        }
+            panic("kheap: corrupted block 0x%x magic=0x%x", curr, curr->magic);
 
         if (curr->size >= needed)
         {

@@ -1,5 +1,6 @@
 #include "paging.h"
 #include "pmm.h"
+#include "errors.h"
 
 typedef struct
 {
@@ -15,10 +16,7 @@ void paging_init(void)
 
     page_directory_t *pd = (page_directory_t *)pmm_allocate_block();
     if (!pd)
-    {
-        for (;;)
-            ;
-    }
+        panic("pmm_allocate_block failed");
 
     for (int i = 0; i < 1024; i++)
         pd->entries[i] = 0;

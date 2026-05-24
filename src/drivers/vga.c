@@ -1,6 +1,7 @@
 #include "vga.h"
 #include "vga13h.h"
 #include <stdint.h>
+#include <stdarg.h>
 
 void vga_init(void)
 {
@@ -56,10 +57,8 @@ static void print_hex(unsigned int val)
     while (n > 0) vga13h_putchar_console(buf[--n]);
 }
 
-void vga_printf(const char *format, ...)
+void vga_vprintf(const char *format, va_list args)
 {
-    uint32_t *arg = (uint32_t *)&format + 1;
-
     for (int i = 0; format[i]; i++)
     {
         if (format[i] == '%' && format[i + 1])
@@ -68,22 +67,22 @@ void vga_printf(const char *format, ...)
             switch (format[i])
             {
             case 'd':
-                print_dec((int)*arg++);
+                print_dec(va_arg(args, int));
                 break;
             case 'x':
-                print_hex((unsigned int)*arg++);
+                print_hex(va_arg(args, unsigned int));
                 break;
             case 's':
-                vga13h_puts((const char *)*arg++);
+                vga13h_puts(va_arg(args, const char *));
                 break;
             case 'c':
-                vga13h_putchar_console((char)*arg++);
+                vga13h_putchar_console((char)va_arg(args, int));
                 break;
             case '0':
                 if (format[i + 1] == '2' && format[i + 2] == 'd')
                 {
                     i += 2;
-                    int val = (int)*arg++;
+                    int val = va_arg(args, int);
                     if (val >= 0 && val < 10)
                         vga13h_putchar_console('0');
                     print_dec(val);
@@ -103,4 +102,12 @@ void vga_printf(const char *format, ...)
             vga13h_putchar_console(format[i]);
         }
     }
+}
+
+void vga_printf(const char *format, ...)
+{
+    va_list args;
+    va_start(args, format);
+    vga_vprintf(format, args);
+    va_end(args);
 }

@@ -3,9 +3,10 @@
 
 #include <stddef.h>
 #include <stdint.h>
+#include <stdarg.h>
 
 #define VGA_WIDTH 40
-#define VGA_HEIGHT 12
+#define VGA_HEIGHT 25
 #define VGA_MEMORY 0xA0000
 
 typedef enum
@@ -35,5 +36,6 @@ void vga_puts(const char *s);
 void vga_set_color(vga_color_t fg, vga_color_t bg);
 void vga_set_cursor(int x, int y);
 void vga_printf(const char *format, ...);
+void vga_vprintf(const char *format, va_list args);
 
 #endif
