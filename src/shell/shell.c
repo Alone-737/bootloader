@@ -5,6 +5,7 @@
 #include "io.h"
 #include "editor.h"
 #include "keyboard.h"
+#include "snake.h"
 
 static const char current_user[4] = "root";
 
@@ -401,11 +402,17 @@ static void cmd_wc(const char *args)
     putc('\n');
 }
 
+static void cmd_snake(const char *args)
+{
+    (void)args;
+    snake_run();
+}
+
 static void cmd_help(const char *args)
 {
     (void)args;
     vga_puts("help  clear  echo  uname  whoami  history  ls  mkdir  pwd  date\n");
-    vga_puts("cat  rm  mv  cp  grep  wc  touch\n");
+    vga_puts("cat  rm  mv  cp  grep  wc  touch  snake\n");
     vga_puts("!N to run command N from history\n");
     vga_puts("Piping & redirection: |  >  >>  <\n");
 }
@@ -571,6 +578,7 @@ static void exec_cmd(const char *cmd)
         {"touch",   cmd_touch},
         {"mkdir",   cmd_mkdir},
         {"edit",    cmd_edit},
+        {"snake",   cmd_snake},
     };
     int ncmds = sizeof(cmd_table) / sizeof(cmd_table[0]);
 

@@ -1,7 +1,14 @@
-FILES = ./build/kernel.asm.o ./build/interrupts.o ./build/kernel.o ./build/errors.o ./build/vga.o ./build/vga13h.o ./build/idt.o ./build/exceptions.o ./build/pmm.o ./build/paging.o ./build/kheap.o ./build/shell.o ./build/history.o ./build/keyboard.o ./build/timer.o ./build/fs.o ./build/vfs.o ./build/editor.o
-FLAGS = -g -ffreestanding -nostdlib -nostartfiles -nodefaultlibs -Wall -O0 -I./src/arch/x86 -I./src/drivers -I./src/kernel -I./src/memory -I./src/shell -I./src/fs -I./src/include -I./src/editor -fno-asynchronous-unwind-tables -fno-exceptions -fno-stack-protector -fno-builtin -m32 -Wa,--32
+BUILD_DIR = ./build
+BIN_DIR = ./bin
 
-all: ./bin/os.bin
+directories:
+	mkdir -p $(BUILD_DIR)
+	mkdir -p $(BIN_DIR)
+
+FILES = ./build/kernel.asm.o ./build/interrupts.o ./build/kernel.o ./build/errors.o ./build/vga.o ./build/vga13h.o ./build/idt.o ./build/exceptions.o ./build/pmm.o ./build/paging.o ./build/kheap.o ./build/shell.o ./build/history.o ./build/keyboard.o ./build/timer.o ./build/fs.o ./build/vfs.o ./build/editor.o ./build/snake.o
+FLAGS = -g -ffreestanding -nostdlib -nostartfiles -nodefaultlibs -Wall -O0 -I./src/arch/x86 -I./src/drivers -I./src/kernel -I./src/memory -I./src/shell -I./src/fs -I./src/include -I./src/editor -I./src/games -fno-asynchronous-unwind-tables -fno-exceptions -fno-stack-protector -fno-builtin -m32 -Wa,--32
+
+all: directories ./bin/os.bin
 
 ./bin/boot.bin: ./src/arch/x86/boot.asm ./src/arch/x86/gdt.asm ./bin/kernel.bin
 	nasm -f bin -I./src/arch/x86 \
@@ -62,6 +69,9 @@ all: ./bin/os.bin
 ./build/editor.o: ./src/editor/editor.c ./src/editor/editor.h
 	gcc $(FLAGS) -std=gnu99 -c ./src/editor/editor.c -o ./build/editor.o
 
+./build/snake.o: ./src/games/snake.c ./src/games/snake.h
+	gcc $(FLAGS) -std=gnu99 -c ./src/games/snake.c -o ./build/snake.o
+
 ./build/kernel.elf: $(FILES) ./linkerscript.ld
 	ld -m elf_i386 -g -relocatable $(FILES) -o ./build/completeKernel.o
 	gcc $(FLAGS) -T ./linkerscript.ld -o ./build/kernel.elf -ffreestanding -O0 -nostdlib ./build/completeKernel.o
@@ -76,6 +86,4 @@ all: ./bin/os.bin
 	dd if=/dev/zero bs=512 count=8 status=none >> ./bin/os.bin
 
 clean:
-	rm -rf ./bin/*.bin
-	rm -rf ./build/*.o
-	rm -rf ./build/*.elf
+	rm -rf $(BUILD_DIR) $(BIN_DIR)

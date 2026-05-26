@@ -1,6 +1,6 @@
 # Bare-Metal OS Bootloader
 
-A minimal x86 operating system bootloader written in assembly and C.
+A hobby x86 operating system written from scratch in assembly and C  with a working shell, text editor, virtual filesystem, and a playable Snake game.
 
 ## Features
 
@@ -10,8 +10,13 @@ A minimal x86 operating system bootloader written in assembly and C.
 - Kernel loaded from disk
 - C kernel with assembly entry point
 - Physical Memory Manager (PMM)
+- PIT-based timer driver
 - Interactive Shell with piping (`|`) and redirection (`>`, `>>`, `<`)
-- Functional RAM Filesystem (flat structure)
+- Virtual Filesystem (VFS) with inode/dentry tree
+- RAM Filesystem (flat structure)
+- Gap-buffer text editor (`edit`)
+- VGA Mode 13h graphics driver (320×200, 256 colors)
+- Playable Snake game (`snake`)
 - QEMU testing support
 - GDB debugging capabilities
 
@@ -20,10 +25,13 @@ A minimal x86 operating system bootloader written in assembly and C.
 - **Bootloader** (`src/arch/x86/boot.asm`): Real mode initialization, disk loading, mode switching
 - **Kernel Assembly** (`src/arch/x86/kernel.asm`): 32-bit entry point
 - **Interrupts and IDT** (`src/arch/x86/interrupts.asm`, `src/arch/x86/idt.c`, `src/arch/x86/idt.h`): Exception and interrupt setup
-- **Drivers** (`src/drivers/`): VGA and keyboard support
+- **Drivers** (`src/drivers/`): VGA text mode, VGA mode 13h, keyboard, and timer
 - **Kernel C** (`src/kernel/kernel.c`): Main kernel logic
 - **Memory** (`src/memory/pmm.c`, `src/memory/pmm.h`): Physical memory management
 - **Shell** (`src/shell/`): Interactive shell and command history
+- **Filesystem** (`src/fs/`): Flat RAM FS and VFS layer
+- **Editor** (`src/editor/`): Gap-buffer text editor
+- **Games** (`src/games/`): Snake
 - **Linker Script** (`linkerscript.ld`): Memory layout
 
 ## Installation
@@ -104,7 +112,7 @@ gdb ./bin/kernel.bin
 
 ## Time Spent
 
-- ~25hours
+- ~35hours
 
 ## License
 
