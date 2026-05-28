@@ -5,8 +5,21 @@ directories:
 	mkdir -p $(BUILD_DIR)
 	mkdir -p $(BIN_DIR)
 
-FILES = ./build/kernel.asm.o ./build/interrupts.o ./build/kernel.o ./build/errors.o ./build/vga.o ./build/vga13h.o ./build/idt.o ./build/exceptions.o ./build/pmm.o ./build/paging.o ./build/kheap.o ./build/shell.o ./build/history.o ./build/keyboard.o ./build/timer.o ./build/fs.o ./build/vfs.o ./build/editor.o ./build/snake.o
-FLAGS = -g -ffreestanding -nostdlib -nostartfiles -nodefaultlibs -Wall -O0 -I./src/arch/x86 -I./src/drivers -I./src/kernel -I./src/memory -I./src/shell -I./src/fs -I./src/include -I./src/editor -I./src/games -fno-asynchronous-unwind-tables -fno-exceptions -fno-stack-protector -fno-builtin -m32 -Wa,--32
+DOOM_OBJS = ./build/doom.o
+
+FILES = ./build/kernel.asm.o ./build/interrupts.o ./build/kernel.o ./build/errors.o \
+	./build/vga.o ./build/vga13h.o ./build/idt.o ./build/exceptions.o \
+	./build/pmm.o ./build/paging.o ./build/kheap.o \
+	./build/shell.o ./build/history.o ./build/keyboard.o ./build/timer.o \
+	./build/fs.o ./build/vfs.o ./build/editor.o ./build/snake.o \
+	./build/klibc.o \
+	$(DOOM_OBJS)
+
+FLAGS = -g -ffreestanding -nostdlib -nostartfiles -nodefaultlibs -Wall -O0 \
+	-I./src/arch/x86 -I./src/drivers -I./src/kernel -I./src/memory \
+	-I./src/shell -I./src/fs -I./src/include -I./src/editor -I./src/games \
+	-fno-asynchronous-unwind-tables -fno-exceptions -fno-stack-protector \
+	-fno-builtin -m32 -Wa,--32
 
 all: directories ./bin/os.bin
 
@@ -72,9 +85,17 @@ all: directories ./bin/os.bin
 ./build/snake.o: ./src/games/snake.c ./src/games/snake.h
 	gcc $(FLAGS) -std=gnu99 -c ./src/games/snake.c -o ./build/snake.o
 
+./build/klibc.o: ./src/lib/klibc.c
+	gcc $(FLAGS) -I./src/memory -I./src/drivers -std=gnu99 -c ./src/lib/klibc.c -o ./build/klibc.o
+
+./build/doom.o: ./src/games/doom.c ./src/games/doom.h
+	gcc $(FLAGS) -std=gnu99 \
+		-DDOOMGENERIC_RESX=320 -DDOOMGENERIC_RESY=200 \
+		-c ./src/games/doom.c -o ./build/doom.o
+
 ./build/kernel.elf: $(FILES) ./linkerscript.ld
 	ld -m elf_i386 -g -relocatable $(FILES) -o ./build/completeKernel.o
-	gcc $(FLAGS) -T ./linkerscript.ld -o ./build/kernel.elf -ffreestanding -O0 -nostdlib ./build/completeKernel.o
+	gcc $(FLAGS) -T ./linkerscript.ld -o ./build/kernel.elf -ffreestanding -O0 -nostdlib ./build/completeKernel.o -lgcc
 
 ./bin/kernel.bin: ./build/kernel.elf
 	objcopy -O binary ./build/kernel.elf ./bin/kernel.bin

@@ -2,40 +2,13 @@
 #include "vfs.h"
 #include "vga.h"
 
-static int str_eq(const char *a, const char *b)
-{
-    signed int i = 0;
-    while (a[i] && b[i])
-    {
-        if (a[i] != b[i])
-            return 0;
-        i++;
-    }
-    return a[i] == b[i];
-}
-
-static int str_len(const char *s)
-{
-    signed int i = 0;
-    while (s[i])
-        i++;
-    return i;
-}
-
-static void str_cpy(char *dst, const char *src)
-{
-    signed int i = 0;
-    while (src[i])
-    {
-        dst[i] = src[i];
-        i++;
-    }
-    dst[i] = '\0';
-}
+extern size_t strlen(const char *s);
+extern int strcmp(const char *a, const char *b);
+extern char *strcpy(char *dst, const char *src);
 
 int fs_create(const char *name)
 {
-    if (!name || str_len(name) == 0 || str_len(name) >= FS_NAME)
+    if (!name || strlen(name) == 0 || strlen(name) >= FS_NAME)
         return -1;
 
     struct dentry *root = vfs_get_root();
@@ -48,7 +21,7 @@ int fs_create(const char *name)
 
 int fs_mkdir(const char *name)
 {
-    if (!name || str_len(name) == 0 || str_len(name) >= FS_NAME)
+    if (!name || strlen(name) == 0 || strlen(name) >= FS_NAME)
         return -1;
 
     struct dentry *root = vfs_get_root();
@@ -72,9 +45,9 @@ int fs_rename(const char *oldname, const char *newname)
 {
     if (!oldname || !newname)
         return -1;
-    if (str_len(newname) == 0 || str_len(newname) >= FS_NAME)
+    if (strlen(newname) == 0 || strlen(newname) >= FS_NAME)
         return -1;
-    if (str_eq(oldname, newname))
+    if (strcmp(oldname, newname) == 0)
         return 0;
 
     struct dentry *root = vfs_get_root();
@@ -84,8 +57,8 @@ int fs_rename(const char *oldname, const char *newname)
     if (vfs_lookup(root, newname))
         return -1;
 
-    str_cpy(dent->name, newname);
-    str_cpy(dent->inode->name, newname);
+    strcpy(dent->name, newname);
+    strcpy(dent->inode->name, newname);
     return 0;
 }
 

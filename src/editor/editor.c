@@ -1,6 +1,7 @@
 #include "editor.h"
 #include "vga.h"
-#include "io.h"
+#include "keyboard.h"
+#include "keys.h"
 #include "fs.h"
 #include "kheap.h"
 
@@ -13,105 +14,10 @@ static volatile uint16_t *vga_buf = (volatile uint16_t *)VGA_MEMORY;
 #define TX_ROW 1
 #define TX_HEIGHT (VGA_HEIGHT - 1)
 
-#define SC_CTRL 0x1D
-#define SC_LSHIFT 0x2A
-#define SC_RSHIFT 0x36
 #define SC_E0 0xE0
 
 static int ctrl_pressed = 0;
 static int shift_pressed = 0;
-
-static const char sc_map[128] = {
-    0,
-    27,
-    '1',
-    '2',
-    '3',
-    '4',
-    '5',
-    '6',
-    '7',
-    '8',
-    '9',
-    '0',
-    '-',
-    '=',
-    '\b',
-    '\t',
-    'q',
-    'w',
-    'e',
-    'r',
-    't',
-    'y',
-    'u',
-    'i',
-    'o',
-    'p',
-    '[',
-    ']',
-    '\n',
-    0,
-    'a',
-    's',
-    'd',
-    'f',
-    'g',
-    'h',
-    'j',
-    'k',
-    'l',
-    ';',
-    '\'',
-    '`',
-    0,
-    '\\',
-    'z',
-    'x',
-    'c',
-    'v',
-    'b',
-    'n',
-    'm',
-    ',',
-    '.',
-    '/',
-    0,
-    '*',
-    0,
-    ' ',
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    '7',
-    '8',
-    '9',
-    '-',
-    '4',
-    '5',
-    '6',
-    '+',
-    '1',
-    '2',
-    '3',
-    '0',
-    '.',
-    0,
-    0,
-};
 
 typedef enum
 {
@@ -476,9 +382,9 @@ static EKey editor_read_key(void)
 
     for (;;)
     {
-        while ((inb(0x64) & 0x01) == 0)
+        while (!keyboard_data_available())
             ;
-        int sc = inb(0x60);
+        unsigned char sc = keyboard_read_raw();
 
         if (sc == SC_E0)
         {
@@ -512,23 +418,23 @@ static EKey editor_read_key(void)
             e0 = 0;
             switch (sc)
             {
-            case 0x48:
+            case SC_E0_UP:
                 return make_key(EKEY_UP, 0);
-            case 0x50:
+            case SC_E0_DOWN:
                 return make_key(EKEY_DOWN, 0);
-            case 0x4B:
+            case SC_E0_LEFT:
                 return make_key(EKEY_LEFT, 0);
-            case 0x4D:
+            case SC_E0_RIGHT:
                 return make_key(EKEY_RIGHT, 0);
-            case 0x47:
+            case SC_E0_HOME:
                 return make_key(EKEY_HOME, 0);
-            case 0x4F:
+            case SC_E0_END:
                 return make_key(EKEY_END, 0);
-            case 0x49:
+            case SC_E0_PGUP:
                 return make_key(EKEY_PGUP, 0);
-            case 0x51:
+            case SC_E0_PGDN:
                 return make_key(EKEY_PGDN, 0);
-            case 0x53:
+            case SC_E0_DEL:
                 return make_key(EKEY_DEL, 0);
             default:
                 continue;
@@ -537,18 +443,18 @@ static EKey editor_read_key(void)
 
         if (ctrl_pressed)
         {
-            if (sc == 0x18)
+            if (sc == SC_O)
                 return make_key(EKEY_CTRL_O, 0);
-            if (sc == 0x2D)
+            if (sc == SC_X)
                 return make_key(EKEY_CTRL_X, 0);
-            if (sc == 0x2E)
+            if (sc == SC_C)
                 return make_key(EKEY_CTRL_C, 0);
-            if (sc == 0x2F)
+            if (sc == SC_V)
                 return make_key(EKEY_CTRL_V, 0);
             continue;
         }
 
-        char c = sc_map[sc];
+        char c = scancode_map[sc];
         if (c == 0)
             continue;
 

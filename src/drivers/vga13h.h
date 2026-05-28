@@ -21,6 +21,4 @@ void vga13h_putchar_console(char c);
 void vga13h_set_fg(uint8_t fg);
 void vga13h_set_bg(uint8_t bg);
 void vga13h_set_cursor(int col, int row);
-void vga13h_printf(const char *format, ...);
-
 #endif

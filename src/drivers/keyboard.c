@@ -7,7 +7,7 @@ static volatile unsigned char buf[BUF_SIZE];
 static volatile int head = 0;
 static volatile int tail = 0;
 
-static const signed char scancode_map[128] = {
+const signed char scancode_map[128] = {
     0, 27, '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-', '=', '\b', '\t',
     'q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p', '[', ']', '\n', 0,
     'a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l', ';', '\'', '`', 0, '\\',

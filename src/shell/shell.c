@@ -6,6 +6,9 @@
 #include "editor.h"
 #include "keyboard.h"
 #include "snake.h"
+#include "doom.h"
+
+extern char *strstr(const char *hay, const char *needle);
 
 static const char current_user[4] = "root";
 
@@ -38,34 +41,10 @@ static void puts(const char *s)
         putc(s[i]);
 }
 
-static int str_contains(const char *s, const char *sub)
-{
-    if (!s || !sub || sub[0] == '\0')
-        return 0;
-    for (int i = 0; s[i]; i++)
-    {
-        int j = 0;
-        while (sub[j] && s[i + j] == sub[j])
-            j++;
-        if (sub[j] == '\0')
-            return 1;
-    }
-    return 0;
-}
-
 static int str_find(const char *s, const char *sub)
 {
-    if (!s || !sub || sub[0] == '\0')
-        return -1;
-    for (int i = 0; s[i]; i++)
-    {
-        int j = 0;
-        while (sub[j] && s[i + j] == sub[j])
-            j++;
-        if (sub[j] == '\0')
-            return i;
-    }
-    return -1;
+    const char *p = strstr(s, sub);
+    return p ? (int)(p - s) : -1;
 }
 
 static void str_cpy_n(char *dst, const char *src, int n)
@@ -330,7 +309,7 @@ static void cmd_grep(const char *args)
         {
             char saved = buf[i];
             buf[i] = '\0';
-            if (str_contains(&buf[line_start], pattern))
+            if (strstr(&buf[line_start], pattern))
             {
                 puts(&buf[line_start]);
                 putc('\n');
@@ -408,11 +387,19 @@ static void cmd_snake(const char *args)
     snake_run();
 }
 
+static void cmd_doom(const char *args)
+{
+    (void)args;
+    /* Switch to VGA mode 13h (320x200) and launch Doom.
+     * This call does not return; reboot to exit. */
+    doom_run();
+}
+
 static void cmd_help(const char *args)
 {
     (void)args;
     vga_puts("help  clear  echo  uname  whoami  history  ls  mkdir  pwd  date\n");
-    vga_puts("cat  rm  mv  cp  grep  wc  touch  snake\n");
+    vga_puts("cat  rm  mv  cp  grep  wc  touch  snake  doom\n");
     vga_puts("!N to run command N from history\n");
     vga_puts("Piping & redirection: |  >  >>  <\n");
 }
@@ -579,6 +566,7 @@ static void exec_cmd(const char *cmd)
         {"mkdir",   cmd_mkdir},
         {"edit",    cmd_edit},
         {"snake",   cmd_snake},
+        {"doom",    cmd_doom},
     };
     int ncmds = sizeof(cmd_table) / sizeof(cmd_table[0]);
 

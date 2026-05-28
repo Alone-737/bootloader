@@ -7,4 +7,6 @@ char keyboard_getchar(void);
 unsigned char keyboard_read_raw(void);
 int keyboard_data_available(void);
 
+extern const signed char scancode_map[128];
+
 #endif

@@ -2,40 +2,13 @@
 #include "kheap.h"
 #include "vga.h"
 
+extern size_t strlen(const char *s);
+extern int strcmp(const char *a, const char *b);
+extern char *strcpy(char *dst, const char *src);
+
 static struct dentry root_dentry;
 static struct inode root_inode;
 static uint32_t next_inode_id = 1;
-
-static int str_eq(const char *a, const char *b)
-{
-    int i = 0;
-    while (a[i] && b[i])
-    {
-        if (a[i] != b[i])
-            return 0;
-        i++;
-    }
-    return a[i] == b[i];
-}
-
-static int str_len(const char *s)
-{
-    int i = 0;
-    while (s[i])
-        i++;
-    return i;
-}
-
-static void str_cpy(char *dst, const char *src)
-{
-    int i = 0;
-    while (src[i])
-    {
-        dst[i] = src[i];
-        i++;
-    }
-    dst[i] = '\0';
-}
 
 void vfs_init(void)
 {
@@ -69,7 +42,7 @@ struct dentry *vfs_lookup(struct dentry *parent, const char *name)
     struct dentry *child = parent->children;
     while (child)
     {
-        if (str_eq(child->name, name))
+        if (strcmp(child->name, name) == 0)
             return child;
         child = child->next;
     }
@@ -97,7 +70,7 @@ struct dentry *vfs_mkdir(struct dentry *parent, const char *name)
 {
     if (!parent || !name)
         return NULL;
-    if (str_len(name) == 0 || str_len(name) >= VFS_NAME)
+    if (strlen(name) == 0 || strlen(name) >= VFS_NAME)
         return NULL;
     if (vfs_lookup(parent, name))
         return NULL;
@@ -113,12 +86,12 @@ struct dentry *vfs_mkdir(struct dentry *parent, const char *name)
         return NULL;
     }
 
-    str_cpy(dent->name, name);
+    strcpy(dent->name, name);
     dent->children = NULL;
     dent->inode = inode;
 
     inode->id = next_inode_id++;
-    str_cpy(inode->name, name);
+    strcpy(inode->name, name);
     inode->type = INODE_DIR;
     inode->size = 0;
     inode->data = NULL;
@@ -132,7 +105,7 @@ struct dentry *vfs_create(struct dentry *parent, const char *name)
 {
     if (!parent || !name)
         return NULL;
-    if (str_len(name) == 0 || str_len(name) >= VFS_NAME)
+    if (strlen(name) == 0 || strlen(name) >= VFS_NAME)
         return NULL;
     if (vfs_lookup(parent, name))
         return NULL;
@@ -148,12 +121,12 @@ struct dentry *vfs_create(struct dentry *parent, const char *name)
         return NULL;
     }
 
-    str_cpy(dent->name, name);
+    strcpy(dent->name, name);
     dent->children = NULL;
     dent->inode = inode;
 
     inode->id = next_inode_id++;
-    str_cpy(inode->name, name);
+    strcpy(inode->name, name);
     inode->type = INODE_FILE;
     inode->size = 0;
     inode->data = NULL;

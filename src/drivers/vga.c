@@ -3,6 +3,8 @@
 #include <stdint.h>
 #include <stdarg.h>
 
+extern int vsnprintf(char *buf, size_t sz, const char *fmt, va_list ap);
+
 void vga_init(void)
 {
     vga13h_init();
@@ -34,80 +36,19 @@ void vga_set_cursor(int x, int y)
     vga13h_set_cursor(x, y);
 }
 
-static void print_dec(int val)
-{
-    char buf[12];
-    int n = 0;
-    if (val < 0) { vga13h_putchar_console('-'); val = -val; }
-    if (val == 0) { vga13h_putchar_console('0'); return; }
-    while (val > 0) { buf[n++] = '0' + (val % 10); val /= 10; }
-    while (n > 0) vga13h_putchar_console(buf[--n]);
-}
-
-static void print_hex(unsigned int val)
-{
-    char buf[12];
-    int n = 0;
-    if (val == 0) { vga13h_putchar_console('0'); return; }
-    while (val > 0) {
-        int d = val % 16;
-        buf[n++] = d < 10 ? '0' + d : 'a' + d - 10;
-        val /= 16;
-    }
-    while (n > 0) vga13h_putchar_console(buf[--n]);
-}
-
 void vga_vprintf(const char *format, va_list args)
 {
-    for (int i = 0; format[i]; i++)
-    {
-        if (format[i] == '%' && format[i + 1])
-        {
-            i++;
-            switch (format[i])
-            {
-            case 'd':
-                print_dec(va_arg(args, int));
-                break;
-            case 'x':
-                print_hex(va_arg(args, unsigned int));
-                break;
-            case 's':
-                vga13h_puts(va_arg(args, const char *));
-                break;
-            case 'c':
-                vga13h_putchar_console((char)va_arg(args, int));
-                break;
-            case '0':
-                if (format[i + 1] == '2' && format[i + 2] == 'd')
-                {
-                    i += 2;
-                    int val = va_arg(args, int);
-                    if (val >= 0 && val < 10)
-                        vga13h_putchar_console('0');
-                    print_dec(val);
-                    break;
-                }
-                vga13h_putchar_console('%');
-                vga13h_putchar_console('0');
-                break;
-            default:
-                vga13h_putchar_console('%');
-                vga13h_putchar_console(format[i]);
-                break;
-            }
-        }
-        else
-        {
-            vga13h_putchar_console(format[i]);
-        }
-    }
+    char buf[256];
+    vsnprintf(buf, sizeof(buf), format, args);
+    vga13h_puts(buf);
 }
 
 void vga_printf(const char *format, ...)
 {
     va_list args;
     va_start(args, format);
-    vga_vprintf(format, args);
+    char buf[256];
+    vsnprintf(buf, sizeof(buf), format, args);
     va_end(args);
+    vga13h_puts(buf);
 }

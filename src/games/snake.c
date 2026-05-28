@@ -1,5 +1,7 @@
 #include "snake.h"
+#include "keys.h"
 #include "vga13h.h"
+#include "vga.h"
 #include "keyboard.h"
 #include "timer.h"
 #include <stdint.h>
@@ -11,33 +13,19 @@
 #define OFS_Y       8
 #define MAX_LEN     (COLS * ROWS)
 
-#define C_BG        0
-#define C_BORDER    8
-#define C_SNAKE_H   10
-#define C_SNAKE_B   2
-#define C_FOOD      12
-#define C_TEXT      15
-#define C_SCORE_V   14
-#define C_GAMEOVER  12
+#define C_BG        VGA_COLOR_BLACK
+#define C_BORDER    VGA_COLOR_DARK_GRAY
+#define C_SNAKE_H   VGA_COLOR_LIGHT_GREEN
+#define C_SNAKE_B   VGA_COLOR_GREEN
+#define C_FOOD      VGA_COLOR_LIGHT_RED
+#define C_TEXT      VGA_COLOR_WHITE
+#define C_SCORE_V   VGA_COLOR_YELLOW
+#define C_GAMEOVER  VGA_COLOR_LIGHT_RED
 
 #define DIR_UP      0
 #define DIR_DOWN    1
 #define DIR_LEFT    2
 #define DIR_RIGHT   3
-
-#define SC_W        0x11
-#define SC_A        0x1E
-#define SC_S        0x1F
-#define SC_D        0x20
-#define SC_Q        0x10
-#define SC_ESC      0x01
-#define SC_UP       0x48
-#define SC_DOWN     0x50
-#define SC_LEFT     0x4B
-#define SC_RIGHT    0x4D
-#define SC_CTRL     0x1D
-#define SC_CTRL_REL 0x9D
-#define SC_C        0x2E
 
 static uint32_t rng_state = 0xDEADBEEF;
 
