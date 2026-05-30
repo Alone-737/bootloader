@@ -1,6 +1,6 @@
-# Bare-Metal OS Bootloader
+# my loneliness is killing me
 
-A hobby x86 operating system written from scratch in assembly and C  with a working shell, text editor, virtual filesystem, and a playable Snake game.
+A hobby x86 operating system born from loneliness, written from scratch in assembly and C with a working shell, text editor, virtual filesystem, and a playable Snake game.
 
 ## Features
 
