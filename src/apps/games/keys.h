@@ -88,7 +88,7 @@
 #define SC_F11      0x57
 #define SC_F12      0x58
 
-/* E0-prefix scan codes (sent after 0xE0) */
+/* E0-prefix scan codes */
 #define SC_E0_UP    0x48
 #define SC_E0_DOWN  0x50
 #define SC_E0_LEFT  0x4B
@@ -99,7 +99,7 @@
 #define SC_E0_PGDN  0x51
 #define SC_E0_DEL   0x53
 
-/* Cursor/arrow aliases (same values as keypad, used without E0 prefix) */
+/* Cursor/arrow aliases */
 #define SC_UP       SC_KP_8
 #define SC_DOWN     SC_KP_2
 #define SC_LEFT     SC_KP_4
