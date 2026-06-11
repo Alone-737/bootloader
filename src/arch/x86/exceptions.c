@@ -35,7 +35,16 @@ char *exception_messages[] = {
     "Reserved",
     "Reserved"};
 
-void exception_handler(int n)
+void exception_handler(int n, int error_code)
 {
-    panic("EXCEPTION: %s (%d)", exception_messages[n], n);
+    if (n == 14)
+    {
+        uint32_t cr2;
+        __asm__ volatile("mov %%cr2, %0" : "=r"(cr2));
+        panic("EXCEPTION: %s (%d) err=0x%x addr=0x%x", exception_messages[n], n, error_code, cr2);
+    }
+    else
+    {
+        panic("EXCEPTION: %s (%d) err=0x%x", exception_messages[n], n, error_code);
+    }
 }

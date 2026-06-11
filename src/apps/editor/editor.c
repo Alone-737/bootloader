@@ -1,18 +1,14 @@
 #include "editor.h"
+#include "vga13h.h"
 #include "vga.h"
 #include "keyboard.h"
 #include "keys.h"
 #include "fs.h"
 #include "kheap.h"
 
-static volatile uint16_t *vga_buf = (volatile uint16_t *)VGA_MEMORY;
-
-#define VGA_ENTRY(c, color) ((uint16_t)(unsigned char)(c) | ((uint16_t)(color) << 8))
-#define ST_COLOR (VGA_COLOR_WHITE | (VGA_COLOR_BLUE << 4))
-#define TXT_COLOR (VGA_COLOR_WHITE | (VGA_COLOR_BLACK << 4))
 #define ST_ROW 0
 #define TX_ROW 1
-#define TX_HEIGHT (VGA_HEIGHT - 1)
+#define TX_HEIGHT (VGA13H_ROWS - 1)
 
 #define SC_E0 0xE0
 
@@ -254,84 +250,73 @@ static void editor_save(GapBuffer *gb)
     gb->modified = 0;
 }
 
-static void draw_combo(char *buf, int *p, char key, const char *label)
+static void draw_combo(char *buf, int *p, int max, char key, const char *label)
 {
+    if (*p >= max) return;
     buf[(*p)++] = '[';
+    if (*p >= max) return;
     buf[(*p)++] = '^';
+    if (*p >= max) return;
     buf[(*p)++] = key;
+    if (*p >= max) return;
     buf[(*p)++] = ']';
-    while (*label)
+    while (*label && *p < max)
         buf[(*p)++] = *label++;
+    if (*p >= max) return;
     buf[(*p)++] = ' ';
+    if (*p >= max) return;
     buf[(*p)++] = ' ';
 }
 
 static void draw_status_bar(GapBuffer *gb)
 {
-    char buf[81];
+    char buf[VGA13H_COLS + 1];
     int p = 0;
 
-    draw_combo(buf, &p, 'O', "save");
-    draw_combo(buf, &p, 'X', "quit");
-    draw_combo(buf, &p, 'K', "cut");
-    draw_combo(buf, &p, 'U', "paste");
-    draw_combo(buf, &p, 'C', "copy");
-    draw_combo(buf, &p, 'V', "paste");
-
-    while (p < 58)
+    draw_combo(buf, &p, VGA13H_COLS, 'O', "save");
+    draw_combo(buf, &p, VGA13H_COLS, 'X', "quit");
+    draw_combo(buf, &p, VGA13H_COLS, 'K', "cut");
+    draw_combo(buf, &p, VGA13H_COLS, 'U', "paste");
+    if (p < VGA13H_COLS)
         buf[p++] = ' ';
-
-    if (gb->filename[0])
-    {
-        for (int i = 0; gb->filename[i] && p < 74; i++)
-            buf[p++] = gb->filename[i];
-    }
-    else
-    {
-        buf[p++] = 'u';
-        buf[p++] = 'n';
-        buf[p++] = 'n';
-        buf[p++] = 'a';
-        buf[p++] = 'm';
-        buf[p++] = 'e';
-        buf[p++] = 'd';
-    }
-
-    buf[p++] = ' ';
-    buf[p++] = '[';
-    buf[p++] = gb->modified ? '*' : ' ';
-    buf[p++] = ']';
-    buf[p++] = ' ';
 
     update_cursor_pos(gb);
     int r = gb->cursor_row;
     int c = gb->cursor_col;
-    if (r >= 100) { buf[p++] = '0' + (r / 100); r %= 100; }
-    if (r >= 10)  { buf[p++] = '0' + (r / 10); r %= 10; }
-    buf[p++] = '0' + r;
-    buf[p++] = ':';
-    if (c >= 100) { buf[p++] = '0' + (c / 100); c %= 100; }
-    if (c >= 10)  { buf[p++] = '0' + (c / 10); c %= 10; }
-    buf[p++] = '0' + c;
+    char rbuf[8];
+    int ri = 0;
+    if (r >= 100) { rbuf[ri++] = '0' + (r / 100); r %= 100; }
+    if (r >= 10)  { rbuf[ri++] = '0' + (r / 10); r %= 10; }
+    rbuf[ri++] = '0' + r;
+    rbuf[ri++] = ':';
+    if (c >= 100) { rbuf[ri++] = '0' + (c / 100); c %= 100; }
+    if (c >= 10)  { rbuf[ri++] = '0' + (c / 10); c %= 10; }
+    rbuf[ri++] = '0' + c;
 
-    while (p < 80)
+    int rpos = VGA13H_COLS - ri;
+    int mpos = rpos - 2;
+    if (p > mpos) p = mpos;
+    while (p < mpos)
+        buf[p++] = ' ';
+    buf[p++] = gb->modified ? '*' : ' ';
+    buf[p++] = ' ';
+    for (int i = 0; i < ri && p < VGA13H_COLS; i++)
+        buf[p++] = rbuf[i];
+    while (p < VGA13H_COLS)
         buf[p++] = ' ';
 
-    uint8_t color = ST_COLOR;
-    for (int x = 0; x < VGA_WIDTH; x++)
-        vga_buf[x] = VGA_ENTRY(buf[x], color);
+    for (int x = 0; x < VGA13H_COLS; x++)
+        vga13h_putchar(x * VGA13H_FONT_W, 0, buf[x], VGA_COLOR_WHITE, VGA_COLOR_BLUE);
 }
 
 static void render(GapBuffer *gb)
 {
-    for (int y = 0; y < VGA_HEIGHT; y++)
-        for (int x = 0; x < VGA_WIDTH; x++)
-            vga_buf[y * VGA_WIDTH + x] = VGA_ENTRY(' ', TXT_COLOR);
+    vga13h_clear(0);
 
     draw_status_bar(gb);
 
     int row = 0, col = 0;
-    int cur_row = 0, cur_col = 0;
+    int cur_px = 0, cur_py = 0;
     int at_cursor = 0;
 
     for (int i = 0; i < gb->size; i++)
@@ -339,8 +324,8 @@ static void render(GapBuffer *gb)
         if (i == gb->gap_start)
         {
             at_cursor = 1;
-            cur_row = row;
-            cur_col = col;
+            cur_px = col * VGA13H_FONT_W;
+            cur_py = (row + TX_ROW) * VGA13H_FONT_H;
             i = gb->gap_end;
             if (i >= gb->size)
                 break;
@@ -354,26 +339,27 @@ static void render(GapBuffer *gb)
         }
         else
         {
-            if (col >= VGA_WIDTH)  
+            if (col >= VGA13H_COLS)
             {
                 col = 0;
                 row++;
             }
-            if (col < VGA_WIDTH && row < TX_HEIGHT)
-                vga_buf[(row + TX_ROW) * VGA_WIDTH + col] = VGA_ENTRY(gb->buf[i], TXT_COLOR);
+            if (col < VGA13H_COLS && row < TX_HEIGHT)
+                vga13h_putchar(col * VGA13H_FONT_W, (row + TX_ROW) * VGA13H_FONT_H,
+                               gb->buf[i], VGA_COLOR_WHITE, VGA_COLOR_BLACK);
             col++;
         }
     }
 
     if (!at_cursor)
     {
-        cur_row = row;
-        cur_col = col;
+        cur_px = col * VGA13H_FONT_W;
+        cur_py = (row + TX_ROW) * VGA13H_FONT_H;
     }
 
-    gb->cursor_row = cur_row;
-    gb->cursor_col = cur_col;
-    vga_set_cursor(cur_col, cur_row + TX_ROW);
+    gb->cursor_row = cur_py / VGA13H_FONT_H - TX_ROW;
+    gb->cursor_col = cur_px / VGA13H_FONT_W;
+    vga13h_putchar(cur_px, cur_py, '_', VGA_COLOR_WHITE, VGA_COLOR_BLACK);
 }
 
 static EKey editor_read_key(void)

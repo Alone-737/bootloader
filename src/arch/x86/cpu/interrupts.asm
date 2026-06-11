@@ -60,10 +60,10 @@ exception_common_stub:
     pushad
     cld
     
-    mov eax, [esp + 32]
-    push eax
+    push dword [esp + 36]  ; error code
+    push dword [esp + 36]  ; exception number
     call exception_handler
-    add esp, 4
+    add esp, 8
     
     popad
     add esp, 8       ; pop exception number and error code pushed by macro
