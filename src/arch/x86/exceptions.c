@@ -33,6 +33,8 @@ char *exception_messages[] = {
     "Reserved",
     "Reserved",
     "Reserved",
+    "Reserved",
+    "Reserved",
     "Reserved"};
 
 void exception_handler(int n, int error_code)

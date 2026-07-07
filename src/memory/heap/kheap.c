@@ -137,3 +137,11 @@ void kfree(void *ptr)
         }
     }
 }
+
+size_t kmalloc_usable_size(void *ptr)
+{
+    if (!ptr)
+        return 0;
+    struct block_header *header = (struct block_header *)((uint8_t *)ptr - sizeof(struct block_header));
+    return header->size - sizeof(struct block_header);
+}

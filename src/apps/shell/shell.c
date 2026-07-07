@@ -97,7 +97,8 @@ void shell_banner(void)
 {
     vga_set_color(VGA_COLOR_WHITE, VGA_COLOR_BLACK);
     vga_puts("I am too lazy to write a proper shell name \n");
-    vga_puts("Type 'help' for commands.\n\n");
+    vga_puts("Type 'help' for commands.\n");
+    vga_puts("Built-in files: cat help.txt, version.txt, motd.txt\n\n");
 }
 
 static signed char get_rtc_register(int reg)

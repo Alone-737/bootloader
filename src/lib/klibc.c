@@ -23,12 +23,22 @@ void *calloc(size_t n, size_t size)
 
 void *realloc(void *ptr, size_t size)
 {
-    void *p = kmalloc(size);
-    if (p && ptr)
+    if (!ptr)
+        return kmalloc(size);
+    if (size == 0)
     {
+        kfree(ptr);
+        return NULL;
+    }
+
+    size_t old_size = kmalloc_usable_size(ptr);
+    void *p = kmalloc(size);
+    if (p)
+    {
+        size_t copy_size = old_size < size ? old_size : size;
         uint8_t *src = (uint8_t *)ptr;
         uint8_t *dst = (uint8_t *)p;
-        for (size_t i = 0; i < size; i++)
+        for (size_t i = 0; i < copy_size; i++)
             dst[i] = src[i];
         kfree(ptr);
     }

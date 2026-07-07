@@ -11,7 +11,7 @@ FILES = ./build/kernel.asm.o ./build/interrupts.o ./build/kernel.o ./build/error
 	./build/vga.o ./build/vga13h.o ./build/idt.o ./build/exceptions.o \
 	./build/pmm.o ./build/paging.o ./build/kheap.o \
 	./build/shell.o ./build/history.o ./build/keyboard.o ./build/timer.o \
-	./build/fs.o ./build/vfs.o ./build/editor.o ./build/snake.o \
+	./build/fs.o ./build/vfs.o ./build/romfs.o ./build/editor.o ./build/snake.o \
 	./build/klibc.o \
 	$(DOOM_OBJS)
 
@@ -20,7 +20,7 @@ FLAGS = -g -ffreestanding -nostdlib -nostartfiles -nodefaultlibs -Wall -O0 \
 	-I./src/drivers/video/text -I./src/drivers/video/graphics \
 	-I./src/drivers/input -I./src/drivers/timer \
 	-I./src/kernel -I./src/memory/physical -I./src/memory/virtual -I./src/memory/heap \
-	-I./src/fs/vfs -I./src/fs/ramfs -I./src/include \
+	-I./src/fs/vfs -I./src/fs/ramfs -I./src/fs/romfs -I./src/include \
 	-I./src/apps/shell -I./src/apps/editor -I./src/apps/games \
 	-I./src/apps/games/snake -I./src/apps/games/doom \
 	-fno-asynchronous-unwind-tables -fno-exceptions -fno-stack-protector \
@@ -83,6 +83,9 @@ all: directories ./bin/os.bin
 
 ./build/vfs.o: ./src/fs/vfs/vfs.c ./src/fs/vfs/vfs.h
 	gcc $(FLAGS) -std=gnu99 -c ./src/fs/vfs/vfs.c -o ./build/vfs.o
+
+./build/romfs.o: ./src/fs/romfs/romfs.c ./src/fs/romfs/romfs.h
+	gcc $(FLAGS) -std=gnu99 -c ./src/fs/romfs/romfs.c -o ./build/romfs.o
 
 ./build/editor.o: ./src/apps/editor/editor.c ./src/apps/editor/editor.h
 	gcc $(FLAGS) -std=gnu99 -c ./src/apps/editor/editor.c -o ./build/editor.o

@@ -1,6 +1,6 @@
 # my loneliness is killing me
 
-A hobby x86 operating system born from loneliness, written from scratch in assembly and C with a working shell, text editor, virtual filesystem, and a playable Snake game.
+A hobby x86 operating system born from loneliness, written from scratch in assembly and C with a working shell, text editor, virtual filesystem, ROM filesystem, and a playable Snake game.
 
 ## Features
 
@@ -14,6 +14,7 @@ A hobby x86 operating system born from loneliness, written from scratch in assem
 - Interactive Shell with piping (`|`) and redirection (`>`, `>>`, `<`)
 - Virtual Filesystem (VFS) with inode/dentry tree
 - RAM Filesystem (flat structure)
+- ROM Filesystem (built-in read-only files: help.txt, version.txt, motd.txt)
 - Gap-buffer text editor (`edit`)
 - VGA Mode 13h graphics driver (320×200, 256 colors)
 - Playable Snake game (`snake`)
@@ -27,7 +28,8 @@ A hobby x86 operating system born from loneliness, written from scratch in assem
 - **Interrupts and IDT** (`src/arch/x86/interrupts.asm`, `src/arch/x86/idt.c`, `src/arch/x86/idt.h`): Exception and interrupt setup
 - **Drivers** (`src/drivers/`): VGA text mode, VGA mode 13h, keyboard, and timer
 - **Kernel C** (`src/kernel/kernel.c`): Main kernel logic
-- **Memory** (`src/memory/pmm.c`, `src/memory/pmm.h`): Physical memory management
+- **Memory** (`src/memory/pmm.c`, `src/memory/pmm.h`): Physical memory management (256MB)
+- **ROM Filesystem** (`src/fs/romfs/`): Built-in read-only files (help.txt, version.txt, motd.txt)
 - **Shell** (`src/shell/`): Interactive shell and command history
 - **Filesystem** (`src/fs/`): Flat RAM FS and VFS layer
 - **Editor** (`src/editor/`): Gap-buffer text editor
