@@ -1,6 +1,7 @@
 #include "kernel.h"
 #include "shell.h"
 #include "idt.h"
+#include "gdt.h"
 #include "pmm.h"
 #include "paging.h"
 #include "kheap.h"
@@ -21,6 +22,7 @@ void shoot_on_your_own_foot()
         *bss++ = 0;
 
     idt_init();
+    gdt_init();
     __asm__ volatile("sti");
     vga_init();
     pmm_init(DEFAULT_MEM_SIZE);

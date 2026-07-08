@@ -8,7 +8,7 @@ directories:
 DOOM_OBJS = ./build/doom.o
 
 FILES = ./build/kernel.asm.o ./build/interrupts.o ./build/kernel.o ./build/errors.o \
-	./build/vga.o ./build/vga13h.o ./build/idt.o ./build/exceptions.o \
+	./build/vga.o ./build/vga13h.o ./build/idt.o ./build/gdt.o ./build/exceptions.o \
 	./build/pmm.o ./build/paging.o ./build/kheap.o \
 	./build/shell.o ./build/history.o ./build/keyboard.o ./build/timer.o \
 	./build/fs.o ./build/vfs.o ./build/romfs.o ./build/editor.o ./build/snake.o \
@@ -53,6 +53,9 @@ all: directories ./bin/os.bin
 
 ./build/idt.o: ./src/arch/x86/idt.c ./src/arch/x86/cpu/idt.h
 	gcc $(FLAGS) -std=gnu99 -c ./src/arch/x86/idt.c -o ./build/idt.o
+
+./build/gdt.o: ./src/arch/x86/gdt.c ./src/arch/x86/gdt.h
+	gcc $(FLAGS) -std=gnu99 -c ./src/arch/x86/gdt.c -o ./build/gdt.o
 
 ./build/exceptions.o: ./src/arch/x86/exceptions.c ./src/drivers/video/text/vga.h ./src/arch/x86/cpu/idt.h
 	gcc $(FLAGS) -std=gnu99 -c ./src/arch/x86/exceptions.c -o ./build/exceptions.o
@@ -113,6 +116,12 @@ all: directories ./bin/os.bin
 	dd if=./bin/boot.bin status=none >> ./bin/os.bin
 	dd if=./bin/kernel.bin status=none >> ./bin/os.bin
 	dd if=/dev/zero bs=512 count=8 status=none >> ./bin/os.bin
+
+run: all
+	qemu-system-x86_64 -drive format=raw,file=./bin/os.bin,if=ide,index=0
+
+debug: all
+	qemu-system-x86_64 -s -S -drive format=raw,file=./bin/os.bin,if=ide,index=0
 
 clean:
 	rm -rf $(BUILD_DIR) $(BIN_DIR)

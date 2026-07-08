@@ -21,7 +21,8 @@ void paging_init(void)
     for (int i = 0; i < 1024; i++)
         pd->entries[i] = 0;
 
-    for (int i = 0; i < 64; i++)
+    pd->entries[0] = (0 * 0x400000) | PDE_PRESENT | PDE_RW | PDE_USER | PDE_PS;
+    for (int i = 1; i < 64; i++)
         pd->entries[i] = (i * 0x400000) | PDE_PRESENT | PDE_RW | PDE_PS;
 
     __asm__ volatile("mov %0, %%cr3" : : "r"(pd));
