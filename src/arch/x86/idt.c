@@ -119,5 +119,8 @@ void idt_init()
     extern void timer_handler_asm();
     idt_set_gate(0x20, (uint32_t)timer_handler_asm, 0x08, 0x8E);
 
+    extern void syscall_handler_asm();
+    idt_set_gate(0x80, (uint32_t)syscall_handler_asm, 0x08, 0xEE);
+
     idt_load((uint32_t)&idtp);
 }

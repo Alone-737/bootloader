@@ -7,8 +7,11 @@
 #include "keyboard.h"
 #include "snake.h"
 #include "doom.h"
+#include "syscall.h"
 
 extern char *strstr(const char *hay, const char *needle);
+
+extern void ring3_test_entry(void);
 
 static const char current_user[4] = "root";
 
@@ -436,6 +439,24 @@ static void cmd_whoami(const char *args)
     vga_printf("%s\n", current_user);
 }
 
+static void cmd_ring3test(const char *args)
+{
+    (void)args;
+    vga_puts("Testing ring-3 + syscall...\n");
+    
+    extern void ring3_test_entry(void);
+    extern void enter_ring3(void *, uint32_t, uint32_t);
+    
+    uint32_t user_stack = 0x201000;
+    uint32_t eflags;
+    __asm__ volatile("pushfl; pop %0" : "=r"(eflags));
+    eflags |= 0x3000;
+    
+    enter_ring3(ring3_test_entry, user_stack, eflags);
+    
+    vga_puts("Back in ring 0\n");
+}
+
 static void cmd_history(const char *args)
 {
     (void)args;
@@ -548,26 +569,27 @@ static void exec_cmd(const char *cmd)
         const char *name;
         void (*handler)(const char *);
     } cmd_table[] = {
-        {"help",    cmd_help},
-        {"clear",   cmd_clear},
-        {"echo",    cmd_echo},
-        {"uname",   cmd_uname},
-        {"whoami",  cmd_whoami},
-        {"history", cmd_history},
-        {"ls",      cmd_ls},
-        {"pwd",     cmd_pwd},
-        {"date",    cmd_date},
-        {"cat",     cmd_cat},
-        {"rm",      cmd_rm},
-        {"mv",      cmd_mv},
-        {"cp",      cmd_cp},
-        {"grep",    cmd_grep},
-        {"wc",      cmd_wc},
-        {"touch",   cmd_touch},
-        {"mkdir",   cmd_mkdir},
-        {"edit",    cmd_edit},
-        {"snake",   cmd_snake},
-        {"doom",    cmd_doom},
+        {"help",       cmd_help},
+        {"clear",      cmd_clear},
+        {"echo",       cmd_echo},
+        {"uname",      cmd_uname},
+        {"whoami",     cmd_whoami},
+        {"ring3test",  cmd_ring3test},
+        {"history",    cmd_history},
+        {"ls",         cmd_ls},
+        {"pwd",        cmd_pwd},
+        {"date",       cmd_date},
+        {"cat",        cmd_cat},
+        {"rm",         cmd_rm},
+        {"mv",         cmd_mv},
+        {"cp",         cmd_cp},
+        {"grep",       cmd_grep},
+        {"wc",         cmd_wc},
+        {"touch",      cmd_touch},
+        {"mkdir",      cmd_mkdir},
+        {"edit",       cmd_edit},
+        {"snake",      cmd_snake},
+        {"doom",       cmd_doom},
     };
     int ncmds = sizeof(cmd_table) / sizeof(cmd_table[0]);
 

@@ -112,3 +112,47 @@ tss_flush:
     mov ax, 0x28
     ltr ax
     ret
+
+extern syscall_handler
+global syscall_handler_asm
+syscall_handler_asm:
+    pushad
+    cld
+    push esp
+    call syscall_handler
+    add esp, 4
+    popad
+    iretd
+
+global enter_ring3
+enter_ring3:
+    mov eax, [esp + 4]
+    mov ebx, [esp + 8]
+    mov ecx, [esp + 12]
+    cli
+    mov esp, ebx
+    push dword 0x23
+    push dword ebx
+    push dword ecx
+    push dword 0x1B
+    push dword eax
+    iretd
+
+global ring3_switch
+ring3_switch:
+    ; args: [esp+4] = user_eip, [esp+8] = user_esp
+    mov eax, [esp + 4]   ; user_eip
+    mov ebx, [esp + 8]   ; user_esp
+    
+    cli
+    ; switch to user stack and build iret frame
+    mov esp, ebx
+    push dword 0x23      ; user SS
+    push ebx             ; user ESP
+    pushfd
+    pop ecx
+    or ecx, 0x3000       ; IF=1, IOPL=3
+    push ecx             ; EFLAGS
+    push dword 0x1B      ; user CS
+    push eax             ; user EIP
+    iretd

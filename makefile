@@ -12,7 +12,7 @@ FILES = ./build/kernel.asm.o ./build/interrupts.o ./build/kernel.o ./build/error
 	./build/pmm.o ./build/paging.o ./build/kheap.o \
 	./build/shell.o ./build/history.o ./build/keyboard.o ./build/timer.o \
 	./build/fs.o ./build/vfs.o ./build/romfs.o ./build/editor.o ./build/snake.o \
-	./build/klibc.o \
+	./build/klibc.o ./build/syscall.o \
 	$(DOOM_OBJS)
 
 FLAGS = -g -ffreestanding -nostdlib -nostartfiles -nodefaultlibs -Wall -O0 \
@@ -98,6 +98,9 @@ all: directories ./bin/os.bin
 
 ./build/klibc.o: ./src/lib/klibc.c
 	gcc $(FLAGS) -std=gnu99 -c ./src/lib/klibc.c -o ./build/klibc.o
+
+./build/syscall.o: ./src/arch/x86/cpu/syscall.c ./src/arch/x86/cpu/syscall.h
+	gcc $(FLAGS) -std=gnu99 -c ./src/arch/x86/cpu/syscall.c -o ./build/syscall.o
 
 ./build/doom.o: ./src/apps/games/doom/doom.c ./src/apps/games/doom/doom.h
 	gcc $(FLAGS) -std=gnu99 \
