@@ -16,6 +16,8 @@ extern char _bss_end;
 
 #define DEFAULT_MEM_SIZE (256 * 1024 * 1024)
 
+uint32_t ring3_return_esp = 0;
+
 void ring3_test_entry(void)
 {
     vga_puts("Ring 3: Hello from user mode!\n");
@@ -37,8 +39,12 @@ void ring3_test_entry(void)
     );
     vga_printf("Ring 3: sys_getpid returned %d\n", ret);
     
-    vga_puts("Ring 3: returning to kernel via iret\n");
-    __asm__ volatile("iret");
+    vga_puts("Ring 3: exiting via sys_exit\n");
+    __asm__ volatile(
+        "int $0x80"
+        : : "a"(4)
+        : "memory"
+    );
 }
 
 void shoot_on_your_own_foot()

@@ -1,6 +1,8 @@
 #include "syscall.h"
 #include "vga.h"
 
+extern uint32_t ring3_return_esp;
+
 typedef struct
 {
     uint32_t edi, esi, ebp, esp, ebx, edx, ecx, eax;
@@ -42,7 +44,17 @@ static uint32_t sys_yield(syscall_regs_t *r)
 static uint32_t sys_exit(syscall_regs_t *r)
 {
     (void)r;
-    vga_puts("\n[user] exit called\n");
+    vga_puts("\n[user] exit called, returning to shell\n");
+    
+    if (ring3_return_esp)
+    {
+        __asm__ volatile(
+            "mov %0, %%esp\n"
+            "ret\n"
+            : : "r"(ring3_return_esp)
+        );
+    }
+    
     for (;;) __asm__ volatile("hlt");
     return 0;
 }
