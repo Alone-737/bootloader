@@ -49,6 +49,44 @@ struct dentry *vfs_lookup(struct dentry *parent, const char *name)
     return NULL;
 }
 
+struct dentry *vfs_lookup_path(struct dentry *start, const char *path)
+{
+    if (!path || path[0] == '\0')
+        return NULL;
+
+    struct dentry *cur = start ? start : &root_dentry;
+
+    if (path[0] == '/')
+    {
+        cur = &root_dentry;
+        path++;
+    }
+
+    char component[VFS_NAME];
+    while (*path)
+    {
+        if (*path == '/')
+        {
+            path++;
+            continue;
+        }
+
+        int ci = 0;
+        while (*path && *path != '/' && ci < (int)VFS_NAME - 1)
+            component[ci++] = *path++;
+        component[ci] = '\0';
+
+        if (ci == 0)
+            continue;
+
+        cur = vfs_lookup(cur, component);
+        if (!cur)
+            return NULL;
+    }
+
+    return cur;
+}
+
 static struct dentry *dentry_alloc(void)
 {
     return (struct dentry *)kmalloc(sizeof(struct dentry));

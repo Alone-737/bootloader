@@ -439,24 +439,28 @@ static void cmd_whoami(const char *args)
     vga_printf("%s\n", current_user);
 }
 
-static uint32_t ring3_return_esp = 0;
+uint32_t ring3_return_esp = 0;
+uint32_t ring3_return_ebp = 0;
 
 static void cmd_ring3test(const char *args)
 {
     (void)args;
     vga_puts("Testing ring-3 + syscall...\n");
-    
+
     extern void ring3_test_entry(void);
     extern void enter_ring3(void *, uint32_t, uint32_t);
-    extern uint32_t ring3_return_esp;
-    
+
     uint32_t user_stack = 0x201000;
     uint32_t eflags;
     __asm__ volatile("pushfl; pop %0" : "=r"(eflags));
     eflags |= 0x3000;
-    
-    __asm__ volatile("mov %%esp, %0" : "=r"(ring3_return_esp));
-    
+
+    __asm__ volatile(
+        "lea 4(%%ebp), %0\n"
+        "mov  (%%ebp), %1\n"
+        : "=r"(ring3_return_esp), "=r"(ring3_return_ebp)
+    );
+
     enter_ring3(ring3_test_entry, user_stack, eflags);
     
     vga_puts("Back in ring 0\n");
@@ -765,7 +769,7 @@ void shell_exec(const char *line)
 
 void shell_run(void)
 {
-    char line[80];
+    char line[512];
     int len = 0;
     line[0] = '\0';
 

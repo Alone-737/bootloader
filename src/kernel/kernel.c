@@ -16,7 +16,7 @@ extern char _bss_end;
 
 #define DEFAULT_MEM_SIZE (256 * 1024 * 1024)
 
-uint32_t ring3_return_esp = 0;
+
 
 void ring3_test_entry(void)
 {

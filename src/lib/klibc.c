@@ -344,7 +344,7 @@ int sprintf(char *buf, const char *fmt, ...)
 {
     va_list ap;
     va_start(ap, fmt);
-    int r = _vsnprintf(buf, (size_t)-1, fmt, ap);
+    int r = _vsnprintf(buf, 4096, fmt, ap);
     va_end(ap);
     return r;
 }

@@ -84,7 +84,7 @@ char keyboard_getchar(void)
     {
         while (head == tail)
         {
-            __asm__ volatile("hlt");
+            __asm__ volatile("sti; hlt");
         }
 
         unsigned char sc = buf[tail];
@@ -100,7 +100,7 @@ unsigned char keyboard_read_raw(void)
 {
     while (head == tail)
     {
-        __asm__ volatile("hlt");
+        __asm__ volatile("sti; hlt");
     }
 
     unsigned char sc = buf[tail];

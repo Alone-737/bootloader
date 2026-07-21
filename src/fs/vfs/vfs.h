@@ -34,6 +34,7 @@ struct dentry
 void vfs_init(void);
 struct dentry *vfs_get_root(void);
 struct dentry *vfs_lookup(struct dentry *parent, const char *name);
+struct dentry *vfs_lookup_path(struct dentry *start, const char *path);
 struct dentry *vfs_mkdir(struct dentry *parent, const char *name);
 struct dentry *vfs_create(struct dentry *parent, const char *name);
 int vfs_delete(struct dentry *dent);
