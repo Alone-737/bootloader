@@ -1,10 +1,7 @@
 #include "vfs.h"
 #include "kheap.h"
 #include "vga.h"
-
-extern size_t strlen(const char *s);
-extern int strcmp(const char *a, const char *b);
-extern char *strcpy(char *dst, const char *src);
+#include "string.h"
 
 static struct dentry root_dentry;
 static struct inode root_inode;

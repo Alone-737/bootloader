@@ -1,11 +1,7 @@
 #include "fs.h"
 #include "vfs.h"
 #include "vga.h"
-
-extern size_t strlen(const char *s);
-extern int strcmp(const char *a, const char *b);
-extern char *strcpy(char *dst, const char *src);
-extern char *strrchr(const char *s, int c);
+#include "string.h"
 
 static struct dentry *fs_resolve_parent(const char *path, const char **leaf)
 {

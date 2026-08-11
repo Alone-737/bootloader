@@ -1,7 +1,6 @@
 #include "romfs.h"
 #include "vfs.h"
-
-extern size_t strlen(const char *s);
+#include "string.h"
 
 struct rom_file
 {

@@ -227,14 +227,11 @@ int DG_GetKey(int *pressed, unsigned char *doomKey) {
 
 void DG_SetWindowTitle(const char *title) { (void)title; }
 
+#include "vga.h"
+
 void doom_run(void) {
-  // static char *argv[] = { "doom", 0 };
-  // doomgeneric_Create(1, argv);
-  // for (;;)
-  //     doomgeneric_Tick();
-  vga13h_init();
-  vga13h_clear(0);
-  // Print a small message or just halt
-  for (;;)
-    ;
+  vga_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
+  vga_puts("Doom is a work in progress and not yet available!\n");
+  vga_set_color(VGA_COLOR_WHITE, VGA_COLOR_BLACK);
 }
+
