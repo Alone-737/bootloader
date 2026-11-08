@@ -53,7 +53,7 @@ int keyboard_data_available(void)
     return head != tail;
 }
 
-static char translate_scancode(unsigned char scancode)
+char keyboard_translate(unsigned char scancode)
 {
     if (scancode == 0x2A || scancode == 0x36)
     {
@@ -90,7 +90,7 @@ char keyboard_getchar(void)
         unsigned char sc = buf[tail];
         tail = (tail + 1) % BUF_SIZE;
 
-        char c = translate_scancode(sc);
+        char c = keyboard_translate(sc);
         if (c != 0)
             return c;
     }

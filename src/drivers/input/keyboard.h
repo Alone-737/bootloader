@@ -4,6 +4,7 @@
 void keyboard_init(void);
 void keyboard_handler(void);
 char keyboard_getchar(void);
+char keyboard_translate(unsigned char scancode);
 unsigned char keyboard_read_raw(void);
 int keyboard_data_available(void);
 

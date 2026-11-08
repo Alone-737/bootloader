@@ -12,6 +12,7 @@ A hobby x86 operating system born from loneliness, written from scratch in assem
 - Physical Memory Manager (PMM)
 - PIT-based timer driver
 - Interactive Shell with piping (`|`) and redirection (`>`, `>>`, `<`)
+- **Arrow key history navigation**: press **Up** / **Down** to cycle through previously typed commands
 - Virtual Filesystem (VFS) with inode/dentry tree
 - RAM Filesystem (flat structure)
 - ROM Filesystem (built-in read-only files: help.txt, version.txt, motd.txt)
@@ -35,6 +36,36 @@ A hobby x86 operating system born from loneliness, written from scratch in assem
 - **Editor** (`src/editor/`): Gap-buffer text editor
 - **Games** (`src/games/`): Snake
 - **Linker Script** (`linkerscript.ld`): Memory layout
+
+## Shell Commands
+
+| Command | Description |
+|---------|-------------|
+| `help` | List all commands |
+| `clear` | Clear the screen |
+| `echo <text>` | Print text |
+| `uname` / `whoami` | Show current user |
+| `history` | Show command history |
+| `!N` | Run command N from history |
+| `ls` | List files |
+| `pwd` | Print working directory |
+| `date` | Show date and time from RTC |
+| `cat <file>` | Display file contents |
+| `rm <file>` | Delete a file |
+| `mv <src> <dst>` | Rename a file |
+| `cp <src> <dst>` | Copy a file |
+| `grep <pattern> <file>` | Search for text in a file |
+| `wc <file>` | Count lines, words, characters |
+| `touch <file>` | Create a new file |
+| `mkdir <dir>` | Create a directory |
+| `edit [file]` | Open the gap-buffer text editor |
+| `snake` | Play Snake |
+| `doom` | Play Doom (reboots to exit) |
+| `reboot` | Reboot the PC |
+| `sleep <seconds>` | Wait for N seconds |
+| `hexdump <file>` | Hex dump of a file |
+
+Piping and redirection: `|`, `>`, `>>`, `<`
 
 ## Installation
 

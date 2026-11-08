@@ -8,6 +8,7 @@
 #include "snake.h"
 #include "doom.h"
 #include "syscall.h"
+#include "timer.h"
 
 extern char *strstr(const char *hay, const char *needle);
 
@@ -404,6 +405,7 @@ static void cmd_help(const char *args)
     (void)args;
     vga_puts("help  clear  echo  uname  whoami  history  ls  mkdir  pwd  date\n");
     vga_puts("cat  rm  mv  cp  grep  wc  touch  snake  doom\n");
+    vga_puts("reboot  sleep  hexdump\n");
     vga_puts("!N to run command N from history\n");
     vga_puts("Piping & redirection: |  >  >>  <\n");
 }
@@ -523,6 +525,81 @@ static void cmd_touch(const char *args)
     }
 }
 
+static void cmd_reboot(const char *args)
+{
+    (void)args;
+    puts("rebooting...\n");
+    outb(0x64, 0xFE);
+    puts("reboot failed\n");
+}
+
+static void cmd_sleep(const char *args)
+{
+    int seconds = 0;
+    while (*args >= '0' && *args <= '9')
+    {
+        seconds = seconds * 10 + (*args - '0');
+        args++;
+    }
+    if (seconds <= 0)
+    {
+        puts("sleep: usage: sleep <seconds>\n");
+        return;
+    }
+    uint32_t start = timer_get_ticks();
+    uint32_t target = start + (uint32_t)seconds * (uint32_t)TIMER_FREQ;
+    while (timer_get_ticks() < target)
+        ;
+    puts("slept\n");
+}
+
+static void cmd_hexdump(const char *args)
+{
+    char fname[64];
+    char arg2[64];
+    for (int i = 0; i < 64; i++) arg2[i] = 0;
+    parse_args(args, fname, arg2);
+    if (fname[0] == '\0')
+    {
+        puts("hexdump: missing operand\n");
+        return;
+    }
+    if (!fs_exists(fname))
+    {
+        puts("hexdump: ");
+        puts(fname);
+        puts(": No such file\n");
+        return;
+    }
+    char buf[FS_SIZE + 1];
+    int n = fs_read(fname, buf, FS_SIZE);
+    if (n <= 0)
+    {
+        puts("hexdump: empty file\n");
+        return;
+    }
+    for (int i = 0; i < n; i += 16)
+    {
+        vga_printf("%08x  ", i);
+        int j;
+        for (j = 0; j < 16 && i + j < n; j++)
+        {
+            vga_printf("%02x ", (unsigned char)buf[i + j]);
+        }
+        for (; j < 16; j++)
+        {
+            puts("   ");
+        }
+        puts("  ");
+        for (j = 0; j < 16 && i + j < n; j++)
+        {
+            char c = buf[i + j];
+            putc(c >= 32 && c < 127 ? c : '.');
+        }
+        putc('\n');
+    }
+}
+
 static void cmd_mkdir(const char *args)
 {
     if (args[0] == '\0')
@@ -596,6 +673,9 @@ static void exec_cmd(const char *cmd)
         {"wc",         cmd_wc},
         {"touch",      cmd_touch},
         {"mkdir",      cmd_mkdir},
+        {"reboot",     cmd_reboot},
+        {"sleep",      cmd_sleep},
+        {"hexdump",    cmd_hexdump},
         {"edit",       cmd_edit},
         {"snake",      cmd_snake},
         {"doom",       cmd_doom},
@@ -767,17 +847,90 @@ void shell_exec(const char *line)
     exec_cmd(cmd);
 }
 
+static void shell_erase_chars(int count)
+{
+    for (int i = 0; i < count; i++)
+    {
+        vga_putchar('\b');
+        vga_putchar(' ');
+        vga_putchar('\b');
+    }
+}
+
 void shell_run(void)
 {
     char line[512];
     int len = 0;
+    int hist_pos = -1; /* -1 = not navigating history */
     line[0] = '\0';
 
     print_prompt();
 
     for (;;)
     {
-        char c = keyboard_getchar();
+        unsigned char sc = keyboard_read_raw();
+
+        /* Up arrow: recall previous history entry */
+        if (sc == 0x48)
+        {
+            int count = history_get_count();
+            if (count == 0)
+                continue;
+            if (hist_pos == -1)
+                hist_pos = count - 1;
+            else if (hist_pos > 0)
+                hist_pos--;
+
+            shell_erase_chars(len);
+
+            const char *hist = history_get(hist_pos);
+            int hlen = 0;
+            while (hist[hlen] && hlen < (int)sizeof(line) - 1)
+                hlen++;
+            for (int i = 0; i < hlen; i++)
+                line[i] = hist[i];
+            line[hlen] = '\0';
+            len = hlen;
+
+            for (int i = 0; i < hlen; i++)
+                vga_putchar(line[i]);
+            continue;
+        }
+
+        /* Down arrow: go forward in history / clear line */
+        if (sc == 0x50)
+        {
+            if (hist_pos == -1)
+                continue;
+            if (hist_pos == history_get_count() - 1)
+            {
+                hist_pos = -1;
+                shell_erase_chars(len);
+                len = 0;
+                line[0] = '\0';
+                continue;
+            }
+            hist_pos++;
+
+            shell_erase_chars(len);
+
+            const char *hist = history_get(hist_pos);
+            int hlen = 0;
+            while (hist[hlen] && hlen < (int)sizeof(line) - 1)
+                hlen++;
+            for (int i = 0; i < hlen; i++)
+                line[i] = hist[i];
+            line[hlen] = '\0';
+            len = hlen;
+
+            for (int i = 0; i < hlen; i++)
+                vga_putchar(line[i]);
+            continue;
+        }
+
+        char c = keyboard_translate(sc);
+        if (c == 0)
+            continue;
 
         if (c == '\n')
         {
@@ -787,6 +940,7 @@ void shell_run(void)
             {
                 history_add(line);
             }
+            hist_pos = -1;
             shell_exec(line);
             len = 0;
             line[0] = '\0';
@@ -804,6 +958,7 @@ void shell_run(void)
                 vga_putchar(' ');
                 vga_putchar('\b');
             }
+            hist_pos = -1;
             continue;
         }
 
@@ -812,6 +967,7 @@ void shell_run(void)
             line[len++] = c;
             line[len] = '\0';
             vga_putchar(c);
+            hist_pos = -1;
         }
     }
 }
