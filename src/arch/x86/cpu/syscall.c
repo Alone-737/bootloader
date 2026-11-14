@@ -1,5 +1,6 @@
 #include "syscall.h"
 #include "vga.h"
+#include "paging.h"
 
 extern uint32_t ring3_return_esp;
 extern uint32_t ring3_return_ebp;
@@ -9,22 +10,15 @@ typedef struct
     uint32_t edi, esi, ebp, esp, ebx, edx, ecx, eax;
 } syscall_regs_t;
 
-#define USER_ADDR_MIN 0x100000U
-#define USER_ADDR_MAX 0x10000000U
-
 static int valid_user_ptr(uint32_t addr, uint32_t len)
 {
-    if (addr < USER_ADDR_MIN)
-        return 0;
-    if (addr > USER_ADDR_MAX || len > USER_ADDR_MAX - addr)
-        return 0;
-    return 1;
+    return addr >= USER_BASE && addr <= USER_LIMIT && len <= USER_LIMIT - addr;
 }
 
 static uint32_t sys_write(syscall_regs_t *r)
 {
-    uint32_t ptr = r->ecx;
-    uint32_t len = r->edx;
+    uint32_t ptr = r->ebx;
+    uint32_t len = r->ecx;
 
     if (!ptr || !len)
         return 0;
@@ -71,6 +65,7 @@ static uint32_t sys_exit(syscall_regs_t *r)
         __asm__ volatile(
             "mov %0, %%ebp\n"
             "mov %1, %%esp\n"
+            "sti\n"
             "ret\n"
             : : "r"(ring3_return_ebp), "r"(ring3_return_esp)
         );

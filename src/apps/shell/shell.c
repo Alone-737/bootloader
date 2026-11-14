@@ -9,10 +9,11 @@
 #include "doom.h"
 #include "syscall.h"
 #include "timer.h"
+#include "net.h"
+#include "paging.h"
 
 extern char *strstr(const char *hay, const char *needle);
-
-extern void ring3_test_entry(void);
+extern int atoi(const char *s);
 
 static const char current_user[4] = "root";
 
@@ -93,14 +94,14 @@ static int parse_args(const char *s, char *a1, char *a2)
 static void print_prompt(void)
 {
     vga_set_color(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK);
-    vga_puts("root@bootsh$ ");
+    vga_puts("root@solace$ ");
     vga_set_color(VGA_COLOR_WHITE, VGA_COLOR_BLACK);
 }
 
 void shell_banner(void)
 {
     vga_set_color(VGA_COLOR_WHITE, VGA_COLOR_BLACK);
-    vga_puts("I am too lazy to write a proper shell name \n");
+    vga_puts("Solace 1.0 - a tiny x86 OS\n");
     vga_puts("Type 'help' for commands.\n");
     vga_puts("Built-in files: cat help.txt, version.txt, motd.txt\n\n");
 }
@@ -292,6 +293,13 @@ static void cmd_grep(const char *args)
             return;
         }
         buf_len = fs_read(fname, buf, FS_SIZE);
+        if (buf_len < 0)
+        {
+            puts("grep: ");
+            puts(fname);
+            puts(": not a file\n");
+            return;
+        }
         buf[buf_len] = '\0';
     }
     else if (pipe_in_active)
@@ -346,6 +354,13 @@ static void cmd_wc(const char *args)
             return;
         }
         buf_len = fs_read(fname, buf, FS_SIZE);
+        if (buf_len < 0)
+        {
+            puts("wc: ");
+            puts(fname);
+            puts(": not a file\n");
+            return;
+        }
         buf[buf_len] = '\0';
     }
     else if (pipe_in_active)
@@ -400,12 +415,60 @@ static void cmd_doom(const char *args)
     doom_run();
 }
 
+static int parse_ip(const char *s, uint8_t out[4])
+{
+    for (int i = 0; i < 4; i++)
+    {
+        int v = 0, digits = 0;
+        while (*s >= '0' && *s <= '9' && digits < 3)
+        {
+            v = v * 10 + (*s++ - '0');
+            digits++;
+        }
+        if (digits == 0 || v > 255)
+            return 0;
+        out[i] = (uint8_t)v;
+        if (i < 3)
+        {
+            if (*s != '.')
+                return 0;
+            s++;
+        }
+    }
+    return *s == '\0';
+}
+
+static void cmd_ping(const char *args)
+{
+    char a1[64], a2[64];
+    int n = parse_args(args, a1, a2);
+    uint8_t ip[4] = {10, 0, 2, 2};  /* slirp gateway */
+
+    if (n >= 1 && a1[0] != '\0' && !parse_ip(a1, ip))
+    {
+        vga_puts("usage: ping [a.b.c.d] [count]\n");
+        return;
+    }
+
+    int count = 4;
+    if (n >= 2)
+    {
+        count = atoi(a2);
+        if (count < 1)
+            count = 1;
+        if (count > 20)
+            count = 20;
+    }
+
+    net_ping(ip, count);
+}
+
 static void cmd_help(const char *args)
 {
     (void)args;
     vga_puts("help  clear  echo  uname  whoami  history  ls  mkdir  pwd  date\n");
     vga_puts("cat  rm  mv  cp  grep  wc  touch  snake  doom\n");
-    vga_puts("reboot  sleep  hexdump\n");
+    vga_puts("reboot  sleep  hexdump  ping  ring3test\n");
     vga_puts("!N to run command N from history\n");
     vga_puts("Piping & redirection: |  >  >>  <\n");
 }
@@ -432,7 +495,7 @@ static void cmd_echo(const char *args)
 static void cmd_uname(const char *args)
 {
     (void)args;
-    vga_printf("%s\n", current_user);
+    vga_puts("Solace 1.0 i386\n");
 }
 
 static void cmd_whoami(const char *args)
@@ -444,18 +507,36 @@ static void cmd_whoami(const char *args)
 uint32_t ring3_return_esp = 0;
 uint32_t ring3_return_ebp = 0;
 
+/* shortcut: copied byte-for-byte to USER_BASE, so it must stay self-contained
+   (own stack + int 0x80 only, no absolute references). */
+__attribute__((section(".usertext"), used, noinline))
+static void user_test_stub(void)
+{
+    char c = 'R';
+    __asm__ volatile("int $0x80" : : "a"(SYS_WRITE), "b"(&c), "c"(1) : "memory");
+    __asm__ volatile("int $0x80" : : "a"(SYS_EXIT) : "memory");
+    for (;;) { }
+}
+
 static void cmd_ring3test(const char *args)
 {
     (void)args;
     vga_puts("Testing ring-3 + syscall...\n");
 
-    extern void ring3_test_entry(void);
     extern void enter_ring3(void *, uint32_t, uint32_t);
+    extern char __usertext_start[], __usertext_end[];
 
-    uint32_t user_stack = 0x201000;
+    uint32_t size = (uint32_t)(__usertext_end - __usertext_start);
+    if (size > USER_LIMIT - USER_BASE)
+    {
+        vga_puts("ring3test: user stub too large\n");
+        return;
+    }
+    for (uint32_t i = 0; i < size; i++)
+        ((uint8_t *)USER_BASE)[i] = ((const uint8_t *)__usertext_start)[i];
+
     uint32_t eflags;
     __asm__ volatile("pushfl; pop %0" : "=r"(eflags));
-    eflags |= 0x3000;
 
     __asm__ volatile(
         "lea 4(%%ebp), %0\n"
@@ -463,9 +544,7 @@ static void cmd_ring3test(const char *args)
         : "=r"(ring3_return_esp), "=r"(ring3_return_ebp)
     );
 
-    enter_ring3(ring3_test_entry, user_stack, eflags);
-    
-    vga_puts("Back in ring 0\n");
+    enter_ring3((void *)USER_BASE, USER_LIMIT, eflags);
 }
 
 static void cmd_history(const char *args)
@@ -676,6 +755,7 @@ static void exec_cmd(const char *cmd)
         {"reboot",     cmd_reboot},
         {"sleep",      cmd_sleep},
         {"hexdump",    cmd_hexdump},
+        {"ping",       cmd_ping},
         {"edit",       cmd_edit},
         {"snake",      cmd_snake},
         {"doom",       cmd_doom},
@@ -836,6 +916,13 @@ void shell_exec(const char *line)
         }
 
         pipe_in_len = fs_read(fname, pipe_in, (int)sizeof(pipe_in) - 1);
+        if (pipe_in_len < 0)
+        {
+            vga_puts("input redirection: ");
+            vga_puts(fname);
+            vga_puts(": not a file\n");
+            return;
+        }
         pipe_in[pipe_in_len] = '\0';
         pipe_in_active = 1;
 

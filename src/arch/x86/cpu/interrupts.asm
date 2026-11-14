@@ -151,7 +151,7 @@ ring3_switch:
     push ebx             ; user ESP
     pushfd
     pop ecx
-    or ecx, 0x3000       ; IF=1, IOPL=3
+    or ecx, 0x0200       ; IF=1, IOPL stays 0 (no port access)
     push ecx             ; EFLAGS
     push dword 0x1B      ; user CS
     push eax             ; user EIP

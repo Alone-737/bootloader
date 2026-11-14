@@ -8,6 +8,10 @@
 #define PDE_USER    0x4
 #define PDE_PS      0x80
 
+/* Ring-3 window: one 4 MiB identity-mapped PDE (PDE 1). */
+#define USER_BASE  0x400000u
+#define USER_LIMIT (USER_BASE + 0x400000u)
+
 void paging_init(void);
 
 #endif

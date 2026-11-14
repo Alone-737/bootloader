@@ -6,10 +6,18 @@ SECTIONS{
   {
     *(.text.startup)
     *(.text)
+    *(.text.*)
+  }
+  .usertext : ALIGN(16)
+  {
+    __usertext_start = .;
+    *(.usertext)
+    __usertext_end = .;
   }
   .rodata : ALIGN(4096)
   {
     *(.rodata)
+    *(.rodata.*)
   }
   .data : ALIGN(4096)
   {

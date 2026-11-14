@@ -40,3 +40,6 @@ coverage/
 # Images
 *.iso
 *.img
+
+# Analysis output
+graphify-out/

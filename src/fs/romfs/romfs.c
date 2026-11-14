@@ -30,6 +30,8 @@ static const char str_help[] =
     "edit    open text editor\n"
     "snake   play Snake game\n"
     "doom    play Doom (WIP)\n"
+    "ping    ICMP echo a host\n"
+    "ring3test enter ring 3 and return\n"
     "!N      repeat command N from history\n"
     "|       pipe output to command\n"
     ">       redirect output to file\n"
@@ -37,13 +39,13 @@ static const char str_help[] =
     "<       read input from file\n";
 
 static const char str_version[] =
-    "my loneliness is killing me v1.0\n"
+    "Solace 1.0\n"
     "x86-32 protected mode\n"
     "256MB RAM, 256KB heap\n"
     "built: " __DATE__ " " __TIME__ "\n";
 
 static const char str_motd[] =
-    "Welcome to my loneliness is killing me!\n"
+    "Welcome to Solace!\n"
     "A hobby x86 OS written from scratch.\n"
     "Type 'help' for available commands.\n"
     "Type 'cat help.txt' for details.\n"

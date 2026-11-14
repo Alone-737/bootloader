@@ -1,6 +1,8 @@
 BUILD_DIR = ./build
 BIN_DIR = ./bin
 
+.DEFAULT_GOAL := all
+
 directories:
 	mkdir -p $(BUILD_DIR)
 	mkdir -p $(BIN_DIR)
@@ -13,7 +15,12 @@ FILES = ./build/kernel.asm.o ./build/interrupts.o ./build/kernel.o ./build/error
 	./build/shell.o ./build/history.o ./build/keyboard.o ./build/timer.o \
 	./build/fs.o ./build/vfs.o ./build/romfs.o ./build/editor.o ./build/snake.o \
 	./build/klibc.o ./build/syscall.o \
+	./build/rtl8139.o ./build/net.o \
+	$(RUST_LIB) \
 	$(DOOM_OBJS)
+
+RUST_SRC = ./rust/solace.rs
+RUST_LIB = ./build/libsolace_rust.a
 
 FLAGS = -g -ffreestanding -nostdlib -nostartfiles -nodefaultlibs -Wall -O0 \
 	-I./src/arch/x86 -I./src/arch/x86/boot -I./src/arch/x86/cpu \
@@ -23,8 +30,9 @@ FLAGS = -g -ffreestanding -nostdlib -nostartfiles -nodefaultlibs -Wall -O0 \
 	-I./src/fs/vfs -I./src/fs/ramfs -I./src/fs/romfs -I./src/include \
 	-I./src/apps/shell -I./src/apps/editor -I./src/apps/games \
 	-I./src/apps/games/snake -I./src/apps/games/doom \
+	-I./src/drivers/net -I./src/net \
 	-fno-asynchronous-unwind-tables -fno-exceptions -fno-stack-protector \
-	-fno-builtin -m32 -Wa,--32
+	-fno-builtin -fno-pie -m32 -Wa,--32
 
 all: directories ./bin/os.bin
 
@@ -99,6 +107,17 @@ all: directories ./bin/os.bin
 ./build/klibc.o: ./src/lib/klibc.c
 	gcc $(FLAGS) -std=gnu99 -c ./src/lib/klibc.c -o ./build/klibc.o
 
+$(RUST_LIB): $(RUST_SRC)
+	rustc --target i586-unknown-linux-gnu --crate-type staticlib \
+		-C panic=abort -C relocation-model=static -C opt-level=2 -C debuginfo=0 \
+		-o $(RUST_LIB) $(RUST_SRC)
+
+./build/rtl8139.o: ./src/drivers/net/rtl8139.c ./src/drivers/net/rtl8139.h
+	gcc $(FLAGS) -std=gnu99 -c ./src/drivers/net/rtl8139.c -o ./build/rtl8139.o
+
+./build/net.o: ./src/net/net.c ./src/net/net.h ./src/drivers/net/rtl8139.h
+	gcc $(FLAGS) -std=gnu99 -c ./src/net/net.c -o ./build/net.o
+
 ./build/syscall.o: ./src/arch/x86/cpu/syscall.c ./src/arch/x86/cpu/syscall.h
 	gcc $(FLAGS) -std=gnu99 -c ./src/arch/x86/cpu/syscall.c -o ./build/syscall.o
 
@@ -109,7 +128,7 @@ all: directories ./bin/os.bin
 
 ./build/kernel.elf: $(FILES) ./linkerscript.ld
 	ld -m elf_i386 -g -relocatable $(FILES) -o ./build/completeKernel.o
-	gcc $(FLAGS) -T ./linkerscript.ld -o ./build/kernel.elf -ffreestanding -O0 -nostdlib ./build/completeKernel.o -lgcc
+	gcc $(FLAGS) -T ./linkerscript.ld -o ./build/kernel.elf -ffreestanding -O0 -nostdlib -no-pie ./build/completeKernel.o -lgcc
 
 ./bin/kernel.bin: ./build/kernel.elf
 	objcopy -O binary ./build/kernel.elf ./bin/kernel.bin
@@ -121,10 +140,10 @@ all: directories ./bin/os.bin
 	dd if=/dev/zero bs=512 count=8 status=none >> ./bin/os.bin
 
 run: all
-	qemu-system-x86_64 -drive format=raw,file=./bin/os.bin,if=ide,index=0
+	qemu-system-x86_64 -drive format=raw,file=./bin/os.bin,if=ide,index=0 -nic user,model=rtl8139
 
 debug: all
-	qemu-system-x86_64 -s -S -drive format=raw,file=./bin/os.bin,if=ide,index=0
+	qemu-system-x86_64 -s -S -drive format=raw,file=./bin/os.bin,if=ide,index=0 -nic user,model=rtl8139
 
 clean:
 	rm -rf $(BUILD_DIR) $(BIN_DIR)
