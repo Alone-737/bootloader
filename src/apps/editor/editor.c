@@ -564,6 +564,8 @@ void editor_run(void)
             editor_save(gb);
             break;
         case EKEY_CTRL_X:
+            if (gb->modified)
+                editor_save(gb);
             goto editor_done;
         default:
             break;

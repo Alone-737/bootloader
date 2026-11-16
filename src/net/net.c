@@ -146,6 +146,132 @@ static void next_hop_mac(const uint8_t dst[4], uint8_t mac[6], int *ok)
         *ok = arp_resolve(gateway_ip, mac) == 0;
 }
 
+/* A-record resolver: one UDP query to the slirp DNS server (10.0.2.3),
+   wait for the reply, copy the first address to out_ip. */
+int net_resolve(const char *name, uint8_t out_ip[4])
+{
+    if (!ready)
+        return -1;
+
+    static const uint8_t dns_ip[4] = {10, 0, 2, 3};
+
+    uint8_t hop_mac[6];
+    int ok;
+    next_hop_mac(dns_ip, hop_mac, &ok);
+    if (!ok)
+        return -1;
+
+    const uint16_t txid = 0x4A7C;
+    const uint16_t sport = 0xA0DE;
+    uint8_t udp[8 + 270];
+    int qlen = 0;
+
+    udp[8] = txid >> 8;
+    udp[9] = txid & 0xFF;
+    udp[10] = 0x01; /* recursion desired */
+    udp[11] = 0x00;
+    udp[12] = 0; /* one question, no answers/nameservers/additionals */
+    udp[13] = 1;
+    for (int i = 14; i < 20; i++)
+        udp[i] = 0;
+    qlen = 12;
+
+    const char *p = name;
+    while (*p)
+    {
+        int lab = 0;
+        while (p[lab] && p[lab] != '.')
+            lab++;
+        if (lab == 0 || lab > 63 || qlen + lab + 1 > 250)
+            return -1;
+        udp[8 + qlen] = (uint8_t)lab;
+        for (int i = 0; i < lab; i++)
+            udp[8 + qlen + 1 + i] = p[i];
+        qlen += lab + 1;
+        p += lab;
+        if (*p == '.')
+            p++;
+    }
+    udp[8 + qlen++] = 0; /* root */
+    udp[8 + qlen++] = 0;
+    udp[8 + qlen++] = 1; /* type A */
+    udp[8 + qlen++] = 0;
+    udp[8 + qlen++] = 1; /* class IN */
+
+    put16(udp, sport);
+    put16(udp + 2, 53);
+    put16(udp + 4, (uint16_t)(8 + qlen));
+    put16(udp + 6, 0); /* UDP checksum optional in IPv4 */
+
+    if (ip_send(hop_mac, dns_ip, 17, udp, 8 + qlen) < 0)
+        return -1;
+
+    uint32_t deadline = timer_get_ticks() + 300; /* 3 s */
+    while (timer_get_ticks() < deadline)
+    {
+        int n = rtl8139_recv(frame, sizeof(frame));
+        if (n < 14 + 20 + 8 + 12)
+            continue;
+        if (frame[12] != 0x08 || frame[13] != 0x00)
+            continue;
+
+        uint8_t *ip = frame + 14;
+        int ihl = (ip[0] & 0x0F) * 4;
+        int total = (ip[2] << 8) | ip[3];
+        if (ip[9] != 17 || ihl < 20 || total < ihl + 8 + 12 || total > n - 14)
+            continue;
+
+        uint8_t *u = ip + ihl;
+        if (((u[0] << 8) | u[1]) != 53 || ((u[2] << 8) | u[3]) != sport)
+            continue;
+
+        uint8_t *dns = u + 8;
+        if (((dns[0] << 8) | dns[1]) != txid)
+            continue;
+        if (dns[3] & 0x0F) /* nonzero RCODE */
+            return -1;
+
+        int qd = (dns[4] << 8) | dns[5];
+        int an = (dns[6] << 8) | dns[7];
+
+        uint8_t *q = dns + 12;
+        for (int i = 0; i < qd; i++)
+        {
+            if (q[0] & 0xC0)
+                q += 2;
+            else
+            {
+                while (*q)
+                    q += *q + 1;
+                q++;
+            }
+            q += 4; /* type + class */
+        }
+
+        for (int i = 0; i < an; i++)
+        {
+            if (q[0] & 0xC0)
+                q += 2;
+            else
+            {
+                while (*q)
+                    q += *q + 1;
+                q++;
+            }
+            int type = (q[0] << 8) | q[1];
+            int rdlen = (q[8] << 8) | q[9];
+            uint8_t *rd = q + 10;
+            if (type == 1 && rdlen == 4)
+            {
+                copy4(out_ip, rd);
+                return 0;
+            }
+            q = rd + rdlen;
+        }
+    }
+    return -1;
+}
+
 int net_ping(const uint8_t dst[4], int count)
 {
     if (!ready)

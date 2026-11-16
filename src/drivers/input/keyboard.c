@@ -26,12 +26,14 @@ static const signed char scancode_map_shift[128] = {
 };
 
 static int shift_pressed = 0;
+static int e0_prefix = 0;
 
 void keyboard_init(void)
 {
     head = 0;
     tail = 0;
     shift_pressed = 0;
+    e0_prefix = 0;
 
     inb(0x60);
 }
@@ -55,6 +57,24 @@ int keyboard_data_available(void)
 
 char keyboard_translate(unsigned char scancode)
 {
+    /* E0 marks an extended key (arrows, keypad Enter...); the byte after it
+       has no plain-text meaning, so swallow the pair instead of letting the
+       bare scancode land on the keypad row of scancode_map. */
+    if (scancode == 0xE0)
+    {
+        e0_prefix = 1;
+        return 0;
+    }
+    if (e0_prefix)
+    {
+        e0_prefix = 0;
+        if (scancode == 0x48)
+            return KEY_UP;
+        if (scancode == 0x50)
+            return KEY_DOWN;
+        return 0;
+    }
+
     if (scancode == 0x2A || scancode == 0x36)
     {
         shift_pressed = 1;

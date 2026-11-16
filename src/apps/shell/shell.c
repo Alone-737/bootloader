@@ -449,8 +449,14 @@ static void cmd_ping(const char *args)
 
     if (n >= 1 && a1[0] != '\0' && !parse_ip(a1, ip))
     {
-        vga_puts("usage: ping [a.b.c.d] [count]\n");
-        return;
+        if (net_resolve(a1, ip) != 0)
+        {
+            vga_puts("ping: cannot resolve ");
+            vga_puts(a1);
+            vga_puts("\n");
+            return;
+        }
+        vga_printf("ping %s (%d.%d.%d.%d)\n", a1, ip[0], ip[1], ip[2], ip[3]);
     }
 
     int count = 4;
@@ -795,43 +801,44 @@ static void cmd_edit(const char *args)
     editor_run();
 }
 
+static const struct {
+    const char *name;
+    void (*handler)(const char *);
+} cmd_table[] = {
+    {"help",       cmd_help},
+    {"clear",      cmd_clear},
+    {"echo",       cmd_echo},
+    {"uname",      cmd_uname},
+    {"whoami",     cmd_whoami},
+    {"ring3test",  cmd_ring3test},
+    {"exec",       cmd_exec},
+    {"mount",      cmd_mount},
+    {"history",    cmd_history},
+    {"ls",         cmd_ls},
+    {"pwd",        cmd_pwd},
+    {"date",       cmd_date},
+    {"cat",        cmd_cat},
+    {"rm",         cmd_rm},
+    {"mv",         cmd_mv},
+    {"cp",         cmd_cp},
+    {"grep",       cmd_grep},
+    {"wc",         cmd_wc},
+    {"touch",      cmd_touch},
+    {"mkdir",      cmd_mkdir},
+    {"reboot",     cmd_reboot},
+    {"sleep",      cmd_sleep},
+    {"hexdump",    cmd_hexdump},
+    {"ping",       cmd_ping},
+    {"edit",       cmd_edit},
+    {"snake",      cmd_snake},
+    {"doom",       cmd_doom},
+};
+
 static void exec_cmd(const char *cmd)
 {
     if (cmd[0] == '\0')
         return;
 
-    static const struct {
-        const char *name;
-        void (*handler)(const char *);
-    } cmd_table[] = {
-        {"help",       cmd_help},
-        {"clear",      cmd_clear},
-        {"echo",       cmd_echo},
-        {"uname",      cmd_uname},
-        {"whoami",     cmd_whoami},
-        {"ring3test",  cmd_ring3test},
-        {"exec",       cmd_exec},
-        {"mount",      cmd_mount},
-        {"history",    cmd_history},
-        {"ls",         cmd_ls},
-        {"pwd",        cmd_pwd},
-        {"date",       cmd_date},
-        {"cat",        cmd_cat},
-        {"rm",         cmd_rm},
-        {"mv",         cmd_mv},
-        {"cp",         cmd_cp},
-        {"grep",       cmd_grep},
-        {"wc",         cmd_wc},
-        {"touch",      cmd_touch},
-        {"mkdir",      cmd_mkdir},
-        {"reboot",     cmd_reboot},
-        {"sleep",      cmd_sleep},
-        {"hexdump",    cmd_hexdump},
-        {"ping",       cmd_ping},
-        {"edit",       cmd_edit},
-        {"snake",      cmd_snake},
-        {"doom",       cmd_doom},
-    };
     int ncmds = sizeof(cmd_table) / sizeof(cmd_table[0]);
 
     for (int i = 0; i < ncmds; i++)
@@ -1016,6 +1023,93 @@ static void shell_erase_chars(int count)
     }
 }
 
+/* True when name starts with the plen-char token at tok. */
+static int tok_match(const char *name, const char *tok, int plen)
+{
+    for (int i = 0; i < plen; i++)
+        if (name[i] != tok[i])
+            return 0;
+    return 1;
+}
+
+/* Completes the last token of line against commands and root directory
+   entries: extends the common prefix in place and returns the new length.
+   When the match stays ambiguous and nothing could be added, lists the
+   candidates and redraws prompt and line. */
+static int tab_complete(char *line, int len, int max)
+{
+    int tok = len;
+    while (tok > 0 && line[tok - 1] != ' ')
+        tok--;
+    int plen = len - tok;
+    if (plen == 0)
+        return len;
+
+    const char *cands[96];
+    int n = 0;
+    int ncmds = sizeof(cmd_table) / sizeof(cmd_table[0]);
+
+    for (int i = 0; i < ncmds && n < 96; i++)
+        if (tok_match(cmd_table[i].name, line + tok, plen))
+            cands[n++] = cmd_table[i].name;
+
+    for (struct dentry *d = vfs_get_root()->children; d && n < 96; d = d->next)
+        if (tok_match(d->name, line + tok, plen))
+            cands[n++] = d->name;
+
+    if (n == 0)
+        return len;
+
+    int common = 0;
+    while (cands[0][common] != '\0')
+    {
+        char ch = cands[0][common];
+        int all = 1;
+        for (int i = 1; i < n; i++)
+            if (cands[i][common] != ch)
+            {
+                all = 0;
+                break;
+            }
+        if (!all)
+            break;
+        common++;
+    }
+
+    int added = 0;
+    if (common > plen && len + (common - plen) < max - 1)
+    {
+        for (int i = plen; i < common; i++)
+        {
+            line[tok + i] = cands[0][i];
+            vga_putchar(cands[0][i]);
+        }
+        added = common - plen;
+        len += added;
+    }
+
+    if (n == 1)
+    {
+        line[len++] = ' ';
+        line[len] = '\0';
+        vga_putchar(' ');
+    }
+    else if (added == 0)
+    {
+        vga_putchar('\n');
+        for (int i = 0; i < n; i++)
+        {
+            vga_puts(cands[i]);
+            vga_puts("  ");
+        }
+        vga_putchar('\n');
+        print_prompt();
+        for (int i = 0; i < len; i++)
+            vga_putchar(line[i]);
+    }
+    return len;
+}
+
 void shell_run(void)
 {
     char line[512];
@@ -1029,8 +1123,12 @@ void shell_run(void)
     {
         unsigned char sc = keyboard_read_raw();
 
+        char c = keyboard_translate(sc);
+        if (c == 0)
+            continue;
+
         /* up arrow */
-        if (sc == 0x48)
+        if (c == KEY_UP)
         {
             int count = history_get_count();
             if (count == 0)
@@ -1057,7 +1155,7 @@ void shell_run(void)
         }
 
         /* down arrow */
-        if (sc == 0x50)
+        if (c == KEY_DOWN)
         {
             if (hist_pos == -1)
                 continue;
@@ -1087,10 +1185,6 @@ void shell_run(void)
             continue;
         }
 
-        char c = keyboard_translate(sc);
-        if (c == 0)
-            continue;
-
         if (c == '\n')
         {
             vga_putchar('\n');
@@ -1104,6 +1198,13 @@ void shell_run(void)
             len = 0;
             line[0] = '\0';
             print_prompt();
+            continue;
+        }
+
+        if (c == '\t')
+        {
+            len = tab_complete(line, len, sizeof(line));
+            hist_pos = -1;
             continue;
         }
 
