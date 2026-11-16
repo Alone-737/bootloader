@@ -78,7 +78,7 @@ sudo dnf install gcc binutils nasm make qemu-system-x86
 | `exec <file>` | Load an ELF file and run it in ring 3 |
 | `mount` | List mounted filesystems |
 | `edit [file]` | Gap-buffer text editor |
-| `ping [a.b.c.d] [count]` | ICMP echo (default gateway, 4 packets) |
+| `ping [host|a.b.c.d] [count]` | Resolve a hostname with DNS, then ICMP echo |
 | `ring3test` | Drop to ring 3, make syscalls, return |
 | `snake` / `doom` | Games |
 | `reboot` / `sleep <seconds>` | Power and timing |
@@ -88,8 +88,10 @@ Pipes and redirection: `|`, `>`, `>>`, `<`
 ## Networking
 
 The stack is static, matching QEMU's user-mode network: guest `10.0.2.15`,
-gateway `10.0.2.2`, no DHCP or DNS. `ping` resolves the next hop with ARP, then
-sends ICMP echo requests. There is no TCP/HTTP yet.
+gateway `10.0.2.2`, no DHCP. `ping` resolves the next hop with ARP, then
+sends ICMP echo requests; hostnames go through a minimal DNS client that
+asks the slirp resolver at `10.0.2.3` for an A record. There is no
+TCP/HTTP yet.
 
 ```bash
 root@abyss$ ping
