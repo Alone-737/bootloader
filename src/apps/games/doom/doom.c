@@ -231,7 +231,7 @@ void DG_SetWindowTitle(const char *title) { (void)title; }
 
 void doom_run(void) {
   vga_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
-  vga_puts("Doom is a work in progress and not yet available!\n");
+  vga_puts("Doom is not yet available\n");
   vga_set_color(VGA_COLOR_WHITE, VGA_COLOR_BLACK);
 }
 

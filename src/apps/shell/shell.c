@@ -94,14 +94,14 @@ static int parse_args(const char *s, char *a1, char *a2)
 static void print_prompt(void)
 {
     vga_set_color(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK);
-    vga_puts("root@solace$ ");
+    vga_puts("root@abyss$ ");
     vga_set_color(VGA_COLOR_WHITE, VGA_COLOR_BLACK);
 }
 
 void shell_banner(void)
 {
     vga_set_color(VGA_COLOR_WHITE, VGA_COLOR_BLACK);
-    vga_puts("Solace 1.0 - a tiny x86 OS\n");
+    vga_puts("Abyss 1.0 - a tiny x86 OS\n");
     vga_puts("Type 'help' for commands.\n");
     vga_puts("Built-in files: cat help.txt, version.txt, motd.txt\n\n");
 }
@@ -495,7 +495,7 @@ static void cmd_echo(const char *args)
 static void cmd_uname(const char *args)
 {
     (void)args;
-    vga_puts("Solace 1.0 i386\n");
+    vga_puts("Abyss 1.0 i386\n");
 }
 
 static void cmd_whoami(const char *args)
@@ -957,7 +957,7 @@ void shell_run(void)
     {
         unsigned char sc = keyboard_read_raw();
 
-        /* Up arrow: recall previous history entry */
+        /* up arrow */
         if (sc == 0x48)
         {
             int count = history_get_count();
@@ -984,7 +984,7 @@ void shell_run(void)
             continue;
         }
 
-        /* Down arrow: go forward in history / clear line */
+        /* down arrow */
         if (sc == 0x50)
         {
             if (hist_pos == -1)

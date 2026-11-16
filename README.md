@@ -1,8 +1,8 @@
-# Solace
+# Abyss
 
-A hobby 32-bit x86 operating system, written from scratch in NASM assembly,
-freestanding C, and a little Rust. It boots from a raw disk image and runs on
-QEMU.
+The Abyss operating system runs the Solace kernel. Both are hobby projects
+written from scratch in NASM assembly, freestanding C, and a little Rust. It
+boots from a raw disk image and runs on QEMU.
 
 ## Features
 
@@ -88,7 +88,7 @@ gateway `10.0.2.2`, no DHCP or DNS. `ping` resolves the next hop with ARP, then
 sends ICMP echo requests. There is no TCP/HTTP yet.
 
 ```bash
-root@solace$ ping
+root@abyss$ ping
 reply from 10.0.2.2: icmp_seq=1 time=0 ms
 ...
 --- 10.0.2.2: 4 sent, 4 received ---
@@ -100,7 +100,7 @@ reply from 10.0.2.2: icmp_seq=1 time=0 ms
 make debug
 gdb ./build/kernel.elf
 (gdb) target remote localhost:1234
-(gdb) break kernel_main
+(gdb) break kernel_start
 (gdb) continue
 ```
 

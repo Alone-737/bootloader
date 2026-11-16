@@ -2,12 +2,12 @@
 
 section .text.startup
 
-extern shoot_on_your_own_foot
+extern kernel_start
 
 global _kernel_entry
 
 _kernel_entry:
-  call shoot_on_your_own_foot
+  call kernel_start
 
   cli
   hlt

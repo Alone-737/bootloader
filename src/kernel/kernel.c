@@ -17,7 +17,7 @@ extern char _bss_end;
 
 #define DEFAULT_MEM_SIZE (256 * 1024 * 1024)
 
-void shoot_on_your_own_foot()
+void kernel_start()
 {
     char *bss = &_bss_start;
     while (bss < &_bss_end)

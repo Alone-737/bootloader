@@ -12,14 +12,14 @@ KERNEL_START_ADDR equ 0x10000
 %endif
 
 start:
-  cli ;Clear interrupts
+  cli
   mov ax, 0x00 
   mov ds , ax
   mov es , ax
   mov ss , ax
   mov sp , 0x7c00
   mov [boot_drive], dl
-  sti ; Enable interrupts
+  sti
 
   ;LOAD KERNEL
 

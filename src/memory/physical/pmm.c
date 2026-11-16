@@ -22,7 +22,7 @@ void pmm_init(uint32_t mem_size) {
     }
 
     for (uint32_t i = 0; i < 256; i++) {
-        bitmap_set(i);  /* reserve first 1 MB (0x00000000 – 0x000FFFFF) for BIOS/kernel */
+        bitmap_set(i);  /* reserve first 1 MB (0x00000000-0x000FFFFF) for BIOS/kernel */
     }
 }
 

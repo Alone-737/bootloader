@@ -39,13 +39,13 @@ static const char str_help[] =
     "<       read input from file\n";
 
 static const char str_version[] =
-    "Solace 1.0\n"
+    "Abyss 1.0\nkernel: Solace\n"
     "x86-32 protected mode\n"
     "256MB RAM, 256KB heap\n"
     "built: " __DATE__ " " __TIME__ "\n";
 
 static const char str_motd[] =
-    "Welcome to Solace!\n"
+    "Welcome to Abyss!\n"
     "A hobby x86 OS written from scratch.\n"
     "Type 'help' for available commands.\n"
     "Type 'cat help.txt' for details.\n"

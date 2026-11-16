@@ -2,6 +2,7 @@
 bin/
 build/
 docs/
+graphify-out/
 
 # Compiled files
 *.o
