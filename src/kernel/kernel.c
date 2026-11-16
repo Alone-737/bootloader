@@ -7,6 +7,8 @@
 #include "kheap.h"
 #include "vfs.h"
 #include "romfs.h"
+#include "procfs.h"
+#include "devfs.h"
 #include "keyboard.h"
 #include "timer.h"
 #include "syscall.h"
@@ -34,6 +36,8 @@ void kernel_start()
     timer_init();
     vfs_init();
     romfs_init();
+    procfs_init();
+    devfs_init();
     syscall_init();
     vga_clear();
     vga_set_cursor(0, 0);

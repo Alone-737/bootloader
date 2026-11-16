@@ -9,6 +9,9 @@
 #include "doom.h"
 #include "syscall.h"
 #include "timer.h"
+#include "vfs.h"
+#include "kheap.h"
+#include "elf.h"
 #include "net.h"
 #include "paging.h"
 
@@ -469,6 +472,7 @@ static void cmd_help(const char *args)
     vga_puts("help  clear  echo  uname  whoami  history  ls  mkdir  pwd  date\n");
     vga_puts("cat  rm  mv  cp  grep  wc  touch  snake  doom\n");
     vga_puts("reboot  sleep  hexdump  ping  ring3test\n");
+    vga_puts("exec <file> run ELF   mount list mounts\n");
     vga_puts("!N to run command N from history\n");
     vga_puts("Piping & redirection: |  >  >>  <\n");
 }
@@ -518,12 +522,28 @@ static void user_test_stub(void)
     for (;;) { }
 }
 
+extern void enter_ring3(void *, uint32_t, uint32_t);
+
+/* Saves the kernel stack so SYS_EXIT can come back, then irets to entry. */
+static void run_user(uint32_t entry)
+{
+    uint32_t eflags;
+    __asm__ volatile("pushfl; pop %0" : "=r"(eflags));
+
+    __asm__ volatile(
+        "lea 4(%%ebp), %0\n"
+        "mov  (%%ebp), %1\n"
+        : "=r"(ring3_return_esp), "=r"(ring3_return_ebp)
+    );
+
+    enter_ring3((void *)entry, USER_LIMIT, eflags);
+}
+
 static void cmd_ring3test(const char *args)
 {
     (void)args;
     vga_puts("Testing ring-3 + syscall...\n");
 
-    extern void enter_ring3(void *, uint32_t, uint32_t);
     extern char __usertext_start[], __usertext_end[];
 
     uint32_t size = (uint32_t)(__usertext_end - __usertext_start);
@@ -535,16 +555,66 @@ static void cmd_ring3test(const char *args)
     for (uint32_t i = 0; i < size; i++)
         ((uint8_t *)USER_BASE)[i] = ((const uint8_t *)__usertext_start)[i];
 
-    uint32_t eflags;
-    __asm__ volatile("pushfl; pop %0" : "=r"(eflags));
+    run_user(USER_BASE);
+}
 
-    __asm__ volatile(
-        "lea 4(%%ebp), %0\n"
-        "mov  (%%ebp), %1\n"
-        : "=r"(ring3_return_esp), "=r"(ring3_return_ebp)
-    );
+static void cmd_exec(const char *args)
+{
+    char fname[64];
+    char arg2[64];
+    for (int i = 0; i < 64; i++) arg2[i] = 0;
+    parse_args(args, fname, arg2);
+    if (fname[0] == '\0')
+    {
+        puts("exec: missing operand\n");
+        return;
+    }
 
-    enter_ring3((void *)USER_BASE, USER_LIMIT, eflags);
+    struct dentry *dent = vfs_lookup_path(NULL, fname);
+    if (!dent || dent->inode->type != INODE_FILE)
+    {
+        puts("exec: ");
+        puts(fname);
+        puts(": No such file\n");
+        return;
+    }
+
+    uint32_t size = dent->inode->size;
+    if (size == 0)
+    {
+        puts("exec: not an ELF file\n");
+        return;
+    }
+    if (size > USER_LIMIT - USER_BASE)
+    {
+        puts("exec: image too large\n");
+        return;
+    }
+
+    char *buf = (char *)kmalloc(size);
+    if (!buf)
+    {
+        puts("exec: out of memory\n");
+        return;
+    }
+    vfs_read(dent->inode, buf, size);
+
+    uint32_t entry;
+    if (elf_load(buf, size, &entry) != 0)
+    {
+        puts("exec: not an ELF file\n");
+        kfree(buf);
+        return;
+    }
+    kfree(buf);
+
+    run_user(entry);
+}
+
+static void cmd_mount(const char *args)
+{
+    (void)args;
+    vfs_list_mounts();
 }
 
 static void cmd_history(const char *args)
@@ -740,6 +810,8 @@ static void exec_cmd(const char *cmd)
         {"uname",      cmd_uname},
         {"whoami",     cmd_whoami},
         {"ring3test",  cmd_ring3test},
+        {"exec",       cmd_exec},
+        {"mount",      cmd_mount},
         {"history",    cmd_history},
         {"ls",         cmd_ls},
         {"pwd",        cmd_pwd},

@@ -1,6 +1,7 @@
 #include "romfs.h"
 #include "vfs.h"
 #include "string.h"
+#include "hello_blob.h"
 
 struct rom_file
 {
@@ -31,6 +32,8 @@ static const char str_help[] =
     "snake   play Snake game\n"
     "doom    play Doom (WIP)\n"
     "ping    ICMP echo a host\n"
+    "exec    run an ELF program in ring 3\n"
+    "mount   list mounted filesystems\n"
     "ring3test enter ring 3 and return\n"
     "!N      repeat command N from history\n"
     "|       pipe output to command\n"
@@ -56,6 +59,7 @@ static const struct rom_file rom_files[] = {
     {"help.txt",    str_help,    sizeof(str_help) - 1},
     {"version.txt", str_version, sizeof(str_version) - 1},
     {"motd.txt",    str_motd,    sizeof(str_motd) - 1},
+    {"hello.elf",   (const char *)hello_elf, sizeof(hello_elf)},
 };
 
 static const int rom_file_count = sizeof(rom_files) / sizeof(rom_files[0]);

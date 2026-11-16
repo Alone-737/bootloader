@@ -22,6 +22,7 @@ void vfs_init(void)
     root_inode.size = 0;
     root_inode.data = NULL;
     root_inode.refcount = 1;
+    root_inode.ops = NULL;
 
     root_dentry.inode = &root_inode;
 }
@@ -131,6 +132,7 @@ struct dentry *vfs_mkdir(struct dentry *parent, const char *name)
     inode->size = 0;
     inode->data = NULL;
     inode->refcount = 1;
+    inode->ops = NULL;
 
     dentry_link(parent, dent);
     return dent;
@@ -166,6 +168,7 @@ struct dentry *vfs_create(struct dentry *parent, const char *name)
     inode->size = 0;
     inode->data = NULL;
     inode->refcount = 1;
+    inode->ops = NULL;
 
     dentry_link(parent, dent);
     return dent;
@@ -205,6 +208,8 @@ int vfs_write(struct inode *inode, const char *data, uint32_t len)
 {
     if (!inode || inode->type != INODE_FILE)
         return -1;
+    if (inode->ops && inode->ops->write)
+        return inode->ops->write(inode, data, len);
     if (len == 0)
     {
         if (inode->data)
@@ -233,6 +238,8 @@ int vfs_read(struct inode *inode, char *buf, uint32_t max_len)
 {
     if (!inode || inode->type != INODE_FILE || !buf)
         return -1;
+    if (inode->ops && inode->ops->read)
+        return inode->ops->read(inode, buf, max_len);
 
     uint32_t to_copy = inode->size < max_len ? inode->size : max_len;
     for (uint32_t i = 0; i < to_copy; i++)
@@ -283,4 +290,43 @@ int vfs_list(struct dentry *dir)
     if (!found)
         vga_puts("  (empty)\n");
     return found;
+}
+
+/*
+ * Mount table: records which path was claimed by which filesystem
+ * type for the `mount` command. The dentry tree itself stays single,
+ * so a mount point is a directory like any other.
+ */
+
+#define VFS_MOUNTS 8
+
+static struct
+{
+    const char *path;
+    const char *fstype;
+} mounts[VFS_MOUNTS];
+static int mount_count;
+
+struct dentry *vfs_mount(const char *path, const char *fstype)
+{
+    if (!path || !fstype || path[0] != '/' || mount_count == VFS_MOUNTS)
+        return NULL;
+    if (vfs_lookup_path(NULL, path))
+        return NULL;
+
+    struct dentry *dent = vfs_mkdir(&root_dentry, path + 1);
+    if (!dent)
+        return NULL;
+
+    mounts[mount_count].path = path;
+    mounts[mount_count].fstype = fstype;
+    mount_count++;
+    return dent;
+}
+
+void vfs_list_mounts(void)
+{
+    for (int i = 0; i < mount_count; i++)
+        vga_printf("%s on %s type %s\n", mounts[i].fstype, mounts[i].path,
+                   mounts[i].fstype);
 }

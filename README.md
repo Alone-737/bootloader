@@ -10,7 +10,9 @@ boots from a raw disk image and runs on QEMU.
 - GDT, IDT, exception handlers, A20 line
 - Physical memory manager, paging with a user-accessible window, kernel heap
 - PIT timer, PS/2 keyboard, VGA text mode, VGA Mode 13h
-- Ring 3 user mode with `int 0x80` system calls (write, read, getpid, yield, exit)
+- Ring 3 user mode with Linux `int 0x80` system calls and `-errno` returns
+- ELF loader: `exec <file>` runs a user program in ring 3
+- Mount table with `procfs` (`/proc`) and `devfs` (`/dev/null`, `/dev/zero`)
 - Rust static library linked into the kernel (`rust/solace.rs`)
 - Network stack: PCI scan, RTL8139 driver (polled PIO), ARP, IPv4, ICMP echo
 - VFS with RAM and ROM filesystems, gap-buffer text editor
@@ -73,6 +75,8 @@ sudo dnf install gcc binutils nasm make qemu-system-x86
 | `cat` / `rm` / `mv` / `cp` | File operations |
 | `grep` / `wc` / `hexdump <file>` | Inspect files |
 | `touch` / `mkdir` | Create files and directories |
+| `exec <file>` | Load an ELF file and run it in ring 3 |
+| `mount` | List mounted filesystems |
 | `edit [file]` | Gap-buffer text editor |
 | `ping [a.b.c.d] [count]` | ICMP echo (default gateway, 4 packets) |
 | `ring3test` | Drop to ring 3, make syscalls, return |
@@ -93,6 +97,10 @@ reply from 10.0.2.2: icmp_seq=1 time=0 ms
 ...
 --- 10.0.2.2: 4 sent, 4 received ---
 ```
+
+`/proc` and `/dev` are mounted at boot: `cat /proc/uptime`, `cat
+/proc/version`, and `echo x > /dev/null` all work. `exec` loads an ELF image
+linked at `0x400000` (see `src/apps/userland/hello.asm`).
 
 ## Debugging
 

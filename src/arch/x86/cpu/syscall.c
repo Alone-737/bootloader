@@ -26,7 +26,7 @@ static uint32_t sys_write(syscall_regs_t *r)
     if (!valid_user_ptr(ptr, len))
     {
         vga_puts("[syscall] sys_write: invalid user pointer\n");
-        return (uint32_t)-1;
+        return (uint32_t)-14; /* -EFAULT */
     }
 
     for (uint32_t i = 0; i < len; i++)
@@ -40,7 +40,7 @@ static uint32_t sys_write(syscall_regs_t *r)
 static uint32_t sys_read(syscall_regs_t *r)
 {
     (void)r;
-    return 0;
+    return (uint32_t)-38; /* -ENOSYS */
 }
 
 static uint32_t sys_getpid(syscall_regs_t *r)
@@ -76,9 +76,11 @@ static uint32_t sys_exit(syscall_regs_t *r)
     return 0;
 }
 
+#define SYSCALL_MAX 160
+
 typedef uint32_t (*syscall_fn_t)(syscall_regs_t *);
 
-static syscall_fn_t syscall_table[32] = {0};
+static syscall_fn_t syscall_table[SYSCALL_MAX] = {0};
 
 void syscall_init(void)
 {
@@ -91,11 +93,11 @@ void syscall_init(void)
 
 void syscall_handler(syscall_regs_t *regs)
 {
-    if (regs->eax >= 32 || syscall_table[regs->eax] == 0)
+    if (regs->eax >= SYSCALL_MAX || syscall_table[regs->eax] == 0)
     {
         vga_puts("[syscall] invalid number: ");
         vga_printf("%d\n", regs->eax);
-        regs->eax = 0xFFFFFFFF;
+        regs->eax = (uint32_t)-38; /* -ENOSYS */
         return;
     }
 

@@ -15,7 +15,8 @@ FILES = ./build/kernel.asm.o ./build/interrupts.o ./build/kernel.o ./build/error
 	./build/shell.o ./build/history.o ./build/keyboard.o ./build/timer.o \
 	./build/fs.o ./build/vfs.o ./build/romfs.o ./build/editor.o ./build/snake.o \
 	./build/klibc.o ./build/syscall.o \
-	./build/rtl8139.o ./build/net.o \
+	./build/rtl8139.o ./build/net.o ./build/procfs.o ./build/devfs.o \
+	./build/elf.o \
 	$(RUST_LIB) \
 	$(DOOM_OBJS)
 
@@ -27,7 +28,8 @@ FLAGS = -g -ffreestanding -nostdlib -nostartfiles -nodefaultlibs -Wall -O0 \
 	-I./src/drivers/video/text -I./src/drivers/video/graphics \
 	-I./src/drivers/input -I./src/drivers/timer \
 	-I./src/kernel -I./src/memory/physical -I./src/memory/virtual -I./src/memory/heap \
-	-I./src/fs/vfs -I./src/fs/ramfs -I./src/fs/romfs -I./src/include \
+	-I./src/fs/vfs -I./src/fs/ramfs -I./src/fs/romfs -I./src/fs/procfs \
+	-I./src/fs/devfs -I./src/lib -I./src/include -I./build \
 	-I./src/apps/shell -I./src/apps/editor -I./src/apps/games \
 	-I./src/apps/games/snake -I./src/apps/games/doom \
 	-I./src/drivers/net -I./src/net \
@@ -95,8 +97,23 @@ all: directories ./bin/os.bin
 ./build/vfs.o: ./src/fs/vfs/vfs.c ./src/fs/vfs/vfs.h
 	gcc $(FLAGS) -std=gnu99 -c ./src/fs/vfs/vfs.c -o ./build/vfs.o
 
-./build/romfs.o: ./src/fs/romfs/romfs.c ./src/fs/romfs/romfs.h
+./build/romfs.o: ./src/fs/romfs/romfs.c ./src/fs/romfs/romfs.h ./build/hello_blob.h
 	gcc $(FLAGS) -std=gnu99 -c ./src/fs/romfs/romfs.c -o ./build/romfs.o
+
+./build/procfs.o: ./src/fs/procfs/procfs.c ./src/fs/procfs/procfs.h
+	gcc $(FLAGS) -std=gnu99 -c ./src/fs/procfs/procfs.c -o ./build/procfs.o
+
+./build/devfs.o: ./src/fs/devfs/devfs.c ./src/fs/devfs/devfs.h
+	gcc $(FLAGS) -std=gnu99 -c ./src/fs/devfs/devfs.c -o ./build/devfs.o
+
+./build/elf.o: ./src/lib/elf.c ./src/lib/elf.h ./src/memory/virtual/paging.h
+	gcc $(FLAGS) -std=gnu99 -c ./src/lib/elf.c -o ./build/elf.o
+
+./build/hello_blob.h: ./src/apps/userland/hello.asm ./src/apps/userland/hello.ld
+	nasm -f elf32 -g ./src/apps/userland/hello.asm -o ./build/hello.o
+	ld -m elf_i386 -T ./src/apps/userland/hello.ld -o ./build/hello.elf ./build/hello.o
+	objcopy -O binary ./build/hello.elf ./build/hello.bin
+	cd ./build && xxd -i hello.elf > hello_blob.h
 
 ./build/editor.o: ./src/apps/editor/editor.c ./src/apps/editor/editor.h
 	gcc $(FLAGS) -std=gnu99 -c ./src/apps/editor/editor.c -o ./build/editor.o

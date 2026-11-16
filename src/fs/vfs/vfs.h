@@ -12,6 +12,16 @@ enum inode_type
     INODE_DIR
 };
 
+struct inode;
+
+/* A filesystem backed by generated content (procfs, devfs) fills these in.
+   NULL ops means a normal tree inode whose data lives in inode->data. */
+struct inode_ops
+{
+    int (*read)(struct inode *inode, char *buf, uint32_t max_len);
+    int (*write)(struct inode *inode, const char *data, uint32_t len);
+};
+
 struct inode
 {
     uint32_t id;
@@ -20,6 +30,7 @@ struct inode
     uint32_t size;
     char *data;
     uint32_t refcount;
+    struct inode_ops *ops;
 };
 
 struct dentry
@@ -42,5 +53,9 @@ int vfs_write(struct inode *inode, const char *data, uint32_t len);
 int vfs_read(struct inode *inode, char *buf, uint32_t max_len);
 int vfs_append(struct inode *inode, const char *data, uint32_t len);
 int vfs_list(struct dentry *dir);
+
+/* Mounts an empty directory at path and records it for vfs_list_mounts. */
+struct dentry *vfs_mount(const char *path, const char *fstype);
+void vfs_list_mounts(void);
 
 #endif
