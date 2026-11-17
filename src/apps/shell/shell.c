@@ -272,6 +272,32 @@ static void cmd_cp(const char *args)
     }
 }
 
+/* Prints the matching lines of buf; prefixes them with "name: " when name is set. */
+static void grep_print(const char *pattern, char *buf, int buf_len, const char *name)
+{
+    int line_start = 0;
+    for (int i = 0; i <= buf_len; i++)
+    {
+        if (buf[i] == '\n' || i == buf_len)
+        {
+            char saved = buf[i];
+            buf[i] = '\0';
+            if (strstr(&buf[line_start], pattern))
+            {
+                if (name)
+                {
+                    puts(name);
+                    puts(": ");
+                }
+                puts(&buf[line_start]);
+                putc('\n');
+            }
+            buf[i] = saved;
+            line_start = i + 1;
+        }
+    }
+}
+
 static void cmd_grep(const char *args)
 {
     char pattern[64], fname[64];
@@ -286,7 +312,7 @@ static void cmd_grep(const char *args)
     char buf[FS_SIZE + 1];
     int buf_len = 0;
 
-    if (n >= 2 && fname[0] != '\0')
+    if (n >= 2 && fname[0] != '\0' && !(fname[0] == '*' && fname[1] == '\0'))
     {
         if (!fs_exists(fname))
         {
@@ -305,6 +331,20 @@ static void cmd_grep(const char *args)
         }
         buf[buf_len] = '\0';
     }
+    else if (fname[0] == '*' && fname[1] == '\0')
+    {
+        for (struct dentry *d = vfs_get_cwd()->children; d; d = d->next)
+        {
+            if (d->inode->type != INODE_FILE)
+                continue;
+            buf_len = fs_read(d->name, buf, FS_SIZE);
+            if (buf_len <= 0)
+                continue;
+            buf[buf_len] = '\0';
+            grep_print(pattern, buf, buf_len, d->name);
+        }
+        return;
+    }
     else if (pipe_in_active)
     {
         buf_len = pipe_in_len;
@@ -318,22 +358,7 @@ static void cmd_grep(const char *args)
         return;
     }
 
-    int line_start = 0;
-    for (int i = 0; i <= buf_len; i++)
-    {
-        if (buf[i] == '\n' || i == buf_len)
-        {
-            char saved = buf[i];
-            buf[i] = '\0';
-            if (strstr(&buf[line_start], pattern))
-            {
-                puts(&buf[line_start]);
-                putc('\n');
-            }
-            buf[i] = saved;
-            line_start = i + 1;
-        }
-    }
+    grep_print(pattern, buf, buf_len, NULL);
 }
 
 static void cmd_wc(const char *args)
@@ -635,14 +660,82 @@ static void cmd_history(const char *args)
 
 static void cmd_ls(const char *args)
 {
-    (void)args;
-    fs_list();
+    char name[64], extra[64];
+    parse_args(args, name, extra);
+
+    if (name[0] == '\0')
+    {
+        fs_list();
+        return;
+    }
+
+    struct dentry *d = vfs_lookup_path(NULL, name);
+    if (!d)
+    {
+        puts("ls: ");
+        puts(name);
+        puts(": No such file or directory\n");
+        return;
+    }
+    if (d->inode->type != INODE_DIR)
+    {
+        puts("ls: ");
+        puts(name);
+        puts(": Not a directory\n");
+        return;
+    }
+    vfs_list(d);
 }
 
 static void cmd_pwd(const char *args)
 {
     (void)args;
-    puts("/\n");
+
+    const char *names[32];
+    int depth = 0;
+    for (struct dentry *d = vfs_get_cwd(); d && d->parent && depth < 32; d = d->parent)
+        names[depth++] = d->name;
+
+    if (depth == 0)
+    {
+        puts("/\n");
+        return;
+    }
+    for (int i = depth - 1; i >= 0; i--)
+    {
+        puts("/");
+        puts(names[i]);
+    }
+    puts("\n");
+}
+
+static void cmd_cd(const char *args)
+{
+    char name[64], extra[64];
+    parse_args(args, name, extra);
+
+    if (name[0] == '\0')
+    {
+        vfs_set_cwd(vfs_get_root());
+        return;
+    }
+
+    struct dentry *d = vfs_lookup_path(NULL, name);
+    if (!d)
+    {
+        puts("cd: ");
+        puts(name);
+        puts(": No such file or directory\n");
+        return;
+    }
+    if (d->inode->type != INODE_DIR)
+    {
+        puts("cd: ");
+        puts(name);
+        puts(": Not a directory\n");
+        return;
+    }
+    vfs_set_cwd(d);
 }
 
 static void cmd_touch(const char *args)
@@ -818,6 +911,7 @@ static const struct {
     {"pwd",        cmd_pwd},
     {"date",       cmd_date},
     {"cat",        cmd_cat},
+    {"cd",        cmd_cd},
     {"rm",         cmd_rm},
     {"mv",         cmd_mv},
     {"cp",         cmd_cp},
@@ -958,6 +1052,8 @@ void shell_exec(const char *line)
         char left[256], right[256];
         str_cpy_n(left, cmd, pipe_pos + 1);
         const char *r = cmd + pipe_pos + 1;
+        while (*r == ' ')
+            r++;
         str_cpy_n(right, r, 255);
 
         cap_on = 1;
@@ -1032,8 +1128,9 @@ static int tok_match(const char *name, const char *tok, int plen)
     return 1;
 }
 
-/* Completes the last token of line against commands and root directory
-   entries: extends the common prefix in place and returns the new length.
+/* Completes the last token of line against commands (command position) or
+   cwd directory entries (argument position): extends the common prefix in
+   place and returns the new length.
    When the match stays ambiguous and nothing could be added, lists the
    candidates and redraws prompt and line. */
 static int tab_complete(char *line, int len, int max)
@@ -1042,20 +1139,22 @@ static int tab_complete(char *line, int len, int max)
     while (tok > 0 && line[tok - 1] != ' ')
         tok--;
     int plen = len - tok;
-    if (plen == 0)
-        return len;
 
     const char *cands[96];
     int n = 0;
     int ncmds = sizeof(cmd_table) / sizeof(cmd_table[0]);
 
-    for (int i = 0; i < ncmds && n < 96; i++)
-        if (tok_match(cmd_table[i].name, line + tok, plen))
-            cands[n++] = cmd_table[i].name;
+    /* Commands at the command position, cwd entries after that. An empty
+       line (or bare "cmd ") matches everything and lists the candidates. */
+    if (tok == 0)
+        for (int i = 0; i < ncmds && n < 96; i++)
+            if (tok_match(cmd_table[i].name, line + tok, plen))
+                cands[n++] = cmd_table[i].name;
 
-    for (struct dentry *d = vfs_get_root()->children; d && n < 96; d = d->next)
-        if (tok_match(d->name, line + tok, plen))
-            cands[n++] = d->name;
+    if (tok > 0)
+        for (struct dentry *d = vfs_get_cwd()->children; d && n < 96; d = d->next)
+            if (tok_match(d->name, line + tok, plen))
+                cands[n++] = d->name;
 
     if (n == 0)
         return len;

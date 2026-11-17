@@ -34,6 +34,8 @@ typedef enum
     EKEY_CTRL_X,
     EKEY_CTRL_C,
     EKEY_CTRL_V,
+    EKEY_CTRL_K,
+    EKEY_CTRL_U,
     EKEY_NONE,
 } EKeyType;
 
@@ -362,6 +364,8 @@ static void render(GapBuffer *gb)
     vga13h_putchar(cur_px, cur_py, '_', VGA_COLOR_WHITE, VGA_COLOR_BLACK);
 }
 
+static GapBuffer *active_gb = NULL;
+
 static EKey editor_read_key(void)
 {
     int e0 = 0;
@@ -381,6 +385,7 @@ static EKey editor_read_key(void)
         if (sc & 0x80)
         {
             int make = sc & 0x7F;
+            e0 = 0; /* the break of an arrow key must not eat the next key */
             if (make == SC_CTRL)
                 ctrl_pressed = 0;
             else if (make == SC_LSHIFT || make == SC_RSHIFT)
@@ -437,6 +442,10 @@ static EKey editor_read_key(void)
                 return make_key(EKEY_CTRL_C, 0);
             if (sc == SC_V)
                 return make_key(EKEY_CTRL_V, 0);
+            if (sc == SC_K)
+                return make_key(EKEY_CTRL_K, 0);
+            if (sc == SC_U)
+                return make_key(EKEY_CTRL_U, 0);
             continue;
         }
 
@@ -460,8 +469,6 @@ static EKey editor_read_key(void)
         return make_key(EKEY_CHAR, c);
     }
 }
-
-static GapBuffer *active_gb = NULL;
 
 void editor_open(const char *filename)
 {
@@ -507,6 +514,10 @@ void editor_open(const char *filename)
 
     active_gb = gb;
 }
+
+/* Cut buffer: Ctrl+K cuts from the cursor to end of line, Ctrl+U pastes it. */
+static char cutbuf[256];
+static int cutlen;
 
 void editor_run(void)
 {
@@ -567,6 +578,19 @@ void editor_run(void)
             if (gb->modified)
                 editor_save(gb);
             goto editor_done;
+        case EKEY_CTRL_K:
+            cutlen = 0;
+            while (gb->gap_end < gb->size && gb->buf[gb->gap_end] != '\n' &&
+                   cutlen < (int)sizeof(cutbuf))
+            {
+                cutbuf[cutlen++] = gb->buf[gb->gap_end];
+                gb_delete_forward(gb);
+            }
+            break;
+        case EKEY_CTRL_U:
+            for (int i = 0; i < cutlen; i++)
+                gb_insert(gb, cutbuf[i]);
+            break;
         default:
             break;
         }

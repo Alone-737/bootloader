@@ -5,12 +5,11 @@
 
 static struct dentry *fs_resolve_parent(const char *path, const char **leaf)
 {
-    struct dentry *root = vfs_get_root();
     const char *slash = strrchr(path, '/');
     if (!slash)
     {
         *leaf = path;
-        return root;
+        return vfs_get_cwd();
     }
 
     char parent_path[FS_NAME * 4];
@@ -18,7 +17,7 @@ static struct dentry *fs_resolve_parent(const char *path, const char **leaf)
     if (plen == 0)
     {
         *leaf = slash + 1;
-        return root;
+        return vfs_get_root();
     }
     if (plen >= (int)sizeof(parent_path))
         return NULL;
@@ -28,7 +27,7 @@ static struct dentry *fs_resolve_parent(const char *path, const char **leaf)
     parent_path[plen] = '\0';
 
     *leaf = slash + 1;
-    return vfs_lookup_path(root, parent_path);
+    return vfs_lookup_path(NULL, parent_path);
 }
 
 int fs_create(const char *name)
@@ -69,7 +68,7 @@ int fs_mkdir(const char *name)
 
 int fs_delete(const char *name)
 {
-    struct dentry *root = vfs_get_root();
+    struct dentry *root = NULL; /* cwd-relative */
     struct dentry *dent = vfs_lookup_path(root, name);
     if (!dent)
         return -1;
@@ -85,7 +84,7 @@ int fs_rename(const char *oldname, const char *newname)
     if (strcmp(oldname, newname) == 0)
         return 0;
 
-    struct dentry *root = vfs_get_root();
+    struct dentry *root = NULL; /* cwd-relative */
     struct dentry *dent = vfs_lookup_path(root, oldname);
     if (!dent)
         return -1;
@@ -128,7 +127,7 @@ int fs_rename(const char *oldname, const char *newname)
 
 int fs_copy(const char *src, const char *dst)
 {
-    struct dentry *root = vfs_get_root();
+    struct dentry *root = NULL; /* cwd-relative */
     struct dentry *src_dent = vfs_lookup_path(root, src);
     if (!src_dent || src_dent->inode->type != INODE_FILE)
         return -1;
@@ -141,7 +140,7 @@ int fs_copy(const char *src, const char *dst)
 
 int fs_write(const char *name, const char *data, int len)
 {
-    struct dentry *root = vfs_get_root();
+    struct dentry *root = NULL; /* cwd-relative */
     struct dentry *dent = vfs_lookup_path(root, name);
     if (!dent || dent->inode->type != INODE_FILE)
         return -1;
@@ -150,7 +149,7 @@ int fs_write(const char *name, const char *data, int len)
 
 int fs_append(const char *name, const char *data, int len)
 {
-    struct dentry *root = vfs_get_root();
+    struct dentry *root = NULL; /* cwd-relative */
     struct dentry *dent = vfs_lookup_path(root, name);
     if (!dent || dent->inode->type != INODE_FILE)
         return -1;
@@ -159,7 +158,7 @@ int fs_append(const char *name, const char *data, int len)
 
 int fs_read(const char *name, char *buf, int max_len)
 {
-    struct dentry *root = vfs_get_root();
+    struct dentry *root = NULL; /* cwd-relative */
     struct dentry *dent = vfs_lookup_path(root, name);
     if (!dent || dent->inode->type != INODE_FILE)
         return -1;
@@ -168,7 +167,7 @@ int fs_read(const char *name, char *buf, int max_len)
 
 int fs_get_size(const char *name)
 {
-    struct dentry *root = vfs_get_root();
+    struct dentry *root = NULL; /* cwd-relative */
     struct dentry *dent = vfs_lookup_path(root, name);
     if (!dent)
         return -1;
@@ -177,11 +176,11 @@ int fs_get_size(const char *name)
 
 int fs_exists(const char *name)
 {
-    struct dentry *root = vfs_get_root();
+    struct dentry *root = NULL; /* cwd-relative */
     return vfs_lookup_path(root, name) != NULL;
 }
 
 void fs_list(void)
 {
-    vfs_list(vfs_get_root());
+    vfs_list(vfs_get_cwd());
 }

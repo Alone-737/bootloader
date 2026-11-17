@@ -7,6 +7,9 @@ static struct dentry root_dentry;
 static struct inode root_inode;
 static uint32_t next_inode_id = 1;
 
+/* Current working directory: relative paths in vfs_lookup_path start here. */
+static struct dentry *cwd_dentry;
+
 void vfs_init(void)
 {
     root_dentry.name[0] = '/';
@@ -25,6 +28,19 @@ void vfs_init(void)
     root_inode.ops = NULL;
 
     root_dentry.inode = &root_inode;
+
+    cwd_dentry = &root_dentry;
+}
+
+struct dentry *vfs_get_cwd(void)
+{
+    return cwd_dentry;
+}
+
+void vfs_set_cwd(struct dentry *d)
+{
+    if (d && d->inode->type == INODE_DIR)
+        cwd_dentry = d;
 }
 
 struct dentry *vfs_get_root(void)
@@ -52,7 +68,7 @@ struct dentry *vfs_lookup_path(struct dentry *start, const char *path)
     if (!path || path[0] == '\0')
         return NULL;
 
-    struct dentry *cur = start ? start : &root_dentry;
+    struct dentry *cur = start ? start : cwd_dentry;
 
     if (path[0] == '/')
     {
@@ -75,6 +91,14 @@ struct dentry *vfs_lookup_path(struct dentry *start, const char *path)
         component[ci] = '\0';
 
         if (ci == 0)
+            continue;
+
+        if (component[0] == '.' && component[1] == '.' && component[2] == '\0')
+        {
+            cur = cur->parent ? cur->parent : &root_dentry;
+            continue;
+        }
+        if (component[0] == '.' && component[1] == '\0')
             continue;
 
         cur = vfs_lookup(cur, component);
