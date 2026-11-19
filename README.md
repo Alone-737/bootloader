@@ -14,6 +14,7 @@ boots from a raw disk image and runs on QEMU.
 - ELF loader: `exec <file>` runs a user program in ring 3
 - Mount table with `procfs` (`/proc`) and `devfs` (`/dev/null`, `/dev/zero`)
 - Rust static library linked into the kernel (`rust/solace.rs`)
+- Rust process table scaffolding: typed PIDs, PCBs, and a round-robin scheduler (`rust/process.rs`)
 - Network stack: PCI scan, RTL8139 driver (polled PIO), ARP, IPv4, ICMP echo
 - VFS with RAM and ROM filesystems, gap-buffer text editor
 - Snake and Doom
@@ -33,6 +34,8 @@ src/
   memory/         physical, virtual, heap
   net/            ARP, IPv4, ICMP
 rust/             Rust sources (staticlib, no Cargo)
+  solace.rs     crate root, checksum routine
+  process.rs    process table, PIDs, scheduler (not wired to C yet)
 ```
 
 ## Building
@@ -84,6 +87,16 @@ sudo dnf install gcc binutils nasm make qemu-system-x86
 | `reboot` / `sleep <seconds>` | Power and timing |
 
 Pipes and redirection: `|`, `>`, `>>`, `<`
+
+## Process table
+
+`rust/process.rs` defines the process model for Solace: a `Pid` newtype, a
+fixed 64-entry table, `ProcessState`, a `repr(C)` CPU context laid out for a
+future `switch.asm`, and a round-robin scheduler. `page_directory` is present
+so per-process CR3 support does not need a PCB rewrite later.
+
+The module compiles into the kernel library but no C code calls it yet. There
+is no context switch, so the shell still runs directly from `kernel_start`.
 
 ## Networking
 

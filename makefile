@@ -124,7 +124,7 @@ all: directories ./bin/os.bin
 ./build/klibc.o: ./src/lib/klibc.c
 	gcc $(FLAGS) -std=gnu99 -c ./src/lib/klibc.c -o ./build/klibc.o
 
-$(RUST_LIB): $(RUST_SRC)
+$(RUST_LIB): $(RUST_SRC) ./rust/process.rs
 	rustc --target i586-unknown-linux-gnu --crate-type staticlib \
 		-C panic=abort -C relocation-model=static -C opt-level=2 -C debuginfo=0 \
 		-o $(RUST_LIB) $(RUST_SRC)

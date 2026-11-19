@@ -1,6 +1,8 @@
 //! Rust half of the Solace kernel: freestanding, no allocator, no std.
 #![no_std]
 
+pub mod process;
+
 #[panic_handler]
 fn panic(_info: &core::panic::PanicInfo) -> ! {
     loop {}
