@@ -44,5 +44,11 @@ void kernel_start()
     net_init();
 
     shell_banner();
-    shell_run();
+
+    /* The shell is PID 1 now. proc_init_shell also creates PID 0 (idle) and
+     * returns the prepared kernel stack for the shell task. */
+    extern uint32_t proc_init_shell(uint32_t shell_entry);
+    extern void sched_start(uint32_t sp);
+    uint32_t sp = proc_init_shell((uint32_t)shell_run);
+    sched_start(sp);
 }

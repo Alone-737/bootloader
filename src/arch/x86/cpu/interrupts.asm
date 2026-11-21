@@ -82,12 +82,21 @@ keyboard_handler_asm:
 
 global timer_handler_asm
 extern timer_handler
+extern sched_switch
 timer_handler_asm:
     pushad
     cld
     call timer_handler
     mov al, 0x20
     out 0x20, al
+
+    ; Save this task's stack, load the next task's stack. sched_switch returns
+    ; the new ESP in eax. The old stack's call artifacts are discarded when we
+    ; later resume at the saved ESP.
+    mov eax, esp
+    push eax
+    call sched_switch
+    mov esp, eax
     popad
     iretd
 

@@ -9,7 +9,7 @@ directories:
 
 DOOM_OBJS = ./build/doom.o
 
-FILES = ./build/kernel.asm.o ./build/interrupts.o ./build/kernel.o ./build/errors.o \
+FILES = ./build/kernel.asm.o ./build/interrupts.o ./build/switch.o ./build/kernel.o ./build/errors.o \
 	./build/vga.o ./build/vga13h.o ./build/idt.o ./build/gdt.o ./build/exceptions.o \
 	./build/pmm.o ./build/paging.o ./build/kheap.o \
 	./build/shell.o ./build/history.o ./build/keyboard.o ./build/timer.o \
@@ -21,6 +21,8 @@ FILES = ./build/kernel.asm.o ./build/interrupts.o ./build/kernel.o ./build/error
 	$(DOOM_OBJS)
 
 RUST_SRC = ./rust/solace.rs
+RUST_MODULES = ./rust/process/mod.rs ./rust/process/process.rs \
+	./rust/process/scheduler.rs ./rust/process/context.rs ./rust/process/pid.rs
 RUST_LIB = ./build/libsolace_rust.a
 
 FLAGS = -g -ffreestanding -nostdlib -nostartfiles -nodefaultlibs -Wall -O0 \
@@ -48,6 +50,9 @@ all: directories ./bin/os.bin
 
 ./build/interrupts.o: ./src/arch/x86/cpu/interrupts.asm
 	nasm -f elf -g ./src/arch/x86/cpu/interrupts.asm -o ./build/interrupts.o
+
+./build/switch.o: ./rust/process/switch.asm
+	nasm -f elf -g ./rust/process/switch.asm -o ./build/switch.o
 
 ./build/kernel.o: ./src/kernel/kernel.c ./src/kernel/kernel.h
 	gcc $(FLAGS) -std=gnu99 -c ./src/kernel/kernel.c -o ./build/kernel.o
@@ -124,7 +129,7 @@ all: directories ./bin/os.bin
 ./build/klibc.o: ./src/lib/klibc.c
 	gcc $(FLAGS) -std=gnu99 -c ./src/lib/klibc.c -o ./build/klibc.o
 
-$(RUST_LIB): $(RUST_SRC) ./rust/process.rs
+$(RUST_LIB): $(RUST_SRC) $(RUST_MODULES)
 	rustc --target i586-unknown-linux-gnu --crate-type staticlib \
 		-C panic=abort -C relocation-model=static -C opt-level=2 -C debuginfo=0 \
 		-o $(RUST_LIB) $(RUST_SRC)

@@ -14,7 +14,8 @@ boots from a raw disk image and runs on QEMU.
 - ELF loader: `exec <file>` runs a user program in ring 3
 - Mount table with `procfs` (`/proc`) and `devfs` (`/dev/null`, `/dev/zero`)
 - Rust static library linked into the kernel (`rust/solace.rs`)
-- Rust process table scaffolding: typed PIDs, PCBs, and a round-robin scheduler (`rust/process.rs`)
+- Preemptive round-robin scheduler: idle is PID 0, shell is PID 1, timer ticks switch tasks
+- Rust process table with typed PIDs, 7-field PCBs, fixed stacks, and an assembly context switch
 - Network stack: PCI scan, RTL8139 driver (polled PIO), ARP, IPv4, ICMP echo
 - VFS with RAM and ROM filesystems, gap-buffer text editor
 - Snake and Doom
@@ -34,8 +35,14 @@ src/
   memory/         physical, virtual, heap
   net/            ARP, IPv4, ICMP
 rust/             Rust sources (staticlib, no Cargo)
-  solace.rs     crate root, checksum routine
-  process.rs    process table, PIDs, scheduler (not wired to C yet)
+  solace.rs       crate root, checksum routine
+  process/
+    mod.rs        module exports
+    pid.rs        typed PID and atomic allocator
+    context.rs    repr(C) saved register state
+    process.rs    PCB, process table, task creation, idle, spawn
+    scheduler.rs  context-switch decision
+    switch.asm    assembly entry into the first task
 ```
 
 ## Building
@@ -90,13 +97,19 @@ Pipes and redirection: `|`, `>`, `>>`, `<`
 
 ## Process table
 
-`rust/process.rs` defines the process model for Solace: a `Pid` newtype, a
-fixed 64-entry table, `ProcessState`, a `repr(C)` CPU context laid out for a
-future `switch.asm`, and a round-robin scheduler. `page_directory` is present
-so per-process CR3 support does not need a PCB rewrite later.
+`rust/process/` defines the process model for Solace. Each PCB has seven
+fields: `pid`, `state`, `context`, `kernel_stack`, `user_stack`, `entry_point`,
+and `cr3`. The table is a fixed array of 64 slots with 16 KiB stacks. PIDs come
+from an atomic counter.
 
-The module compiles into the kernel library but no C code calls it yet. There
-is no context switch, so the shell still runs directly from `kernel_start`.
+Boot creates idle (PID 0) and the shell (PID 1). `sched_start` enters the shell
+through a prepared `popad`/`iretd` frame. Each PIT tick calls `sched_switch`,
+which saves the current stack pointer and loads the next ready task. Idle halts
+the CPU until the next interrupt.
+
+`proc_spawn(entry)` is available to C code but no shell command calls it yet,
+so Doom, Snake, and the editor still take over the shell instead of running as
+separate tasks. There is no `fork`, `wait`, signals, or per-process paging.
 
 ## Networking
 
